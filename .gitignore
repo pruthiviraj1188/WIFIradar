@@ -87,3 +87,9 @@ coverage.xml
 *.tmp
 *.temp
 .cache/
+
+# Live CSI runtime data & personal emergency contacts
+live_csi_data/emergency_contacts.json
+live_csi_data/incoming/*.jsonl
+live_csi_data/events/*.jsonl
+live_csi_data/archive/timestamped_sessions/*.jsonl

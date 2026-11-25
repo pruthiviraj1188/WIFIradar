@@ -63,6 +63,31 @@ export async function fetchDailyAnalytics() {
   return res.data
 }
 
+export async function fetchEsp32Status() {
+  const res = await apiClient.get('/api/esp32/status')
+  return res.data
+}
+
+export async function fetchEmergencyContacts() {
+  const res = await apiClient.get('/api/esp32/contacts')
+  return res.data.contacts || []
+}
+
+export async function addEmergencyContactApi(contact) {
+  const res = await apiClient.post('/api/esp32/contacts', contact)
+  return res.data.contacts || []
+}
+
+export async function deleteEmergencyContactApi(id) {
+  const res = await apiClient.delete(`/api/esp32/contacts/${id}`)
+  return res.data.contacts || []
+}
+
+export async function triggerEmergencyEscalationApi(payload) {
+  const res = await apiClient.post('/api/esp32/escalate', payload)
+  return res.data
+}
+
 export function getWebSocketUrl(roomId = 1) {
   const configured = import.meta.env.VITE_WS_URL
   if (configured) {

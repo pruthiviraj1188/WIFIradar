@@ -1,10 +1,15 @@
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import {
   acknowledgeIncidentApi,
+  addEmergencyContactApi,
   checkBackendHealth,
+  deleteEmergencyContactApi,
+  fetchEmergencyContacts,
+  fetchEsp32Status,
   generateSimulatedCsiFrame,
   getWebSocketUrl,
   resolveIncidentApi,
+  triggerEmergencyEscalationApi,
 } from '../services/api'
 
 const TelemetryContext = createContext(null)
@@ -87,6 +92,18 @@ export function TelemetryProvider({ children }) {
   const [activities, setActivities] = useState(INITIAL_ACTIVITIES)
   const [incidents, setIncidents] = useState(INITIAL_INCIDENTS)
   const [activeAlert, setActiveAlert] = useState(null)
+  const [esp32Status, setEsp32Status] = useState(null)
+  const [emergencyContacts, setEmergencyContacts] = useState(() => {
+    try {
+      const saved = localStorage.getItem('wifi_radar_emergency_contacts')
+      return saved ? JSON.parse(saved) : []
+    } catch {
+      return []
+    }
+  })
+  const [fallCountdown, setFallCountdown] = useState(null)
+  const [escalationState, setEscalationState] = useState('idle') // 'idle' | 'counting' | 'recovered' | 'escalated'
+  const [dispatchedContacts, setDispatchedContacts] = useState([])
 
   const [settings, setSettings] = useState({
     samplingRateHz: 10,
@@ -119,6 +136,50 @@ export function TelemetryProvider({ children }) {
     }
   }, [])
 
+  // Poll real ESP32 hardware + local ML inference status from port 8080 backend
+  useEffect(() => {
+    if (!backendHealthy) return
+    let mounted = true
+    const pollEsp32 = async () => {
+      try {
+        const data = await fetchEsp32Status()
+        if (!mounted) return
+        setEsp32Status(data)
+        const log = data?.logger
+        const inf = data?.inference
+        if (log && log.records_received > 0 && log.last_amplitudes?.length > 0) {
+          const livePayload = {
+            type: 'csi_update',
+            room_id: selectedRoomId,
+            timestamp: log.last_packet_at || new Date().toISOString(),
+            activity: inf?.predicted_label || 'stand',
+            confidence: inf?.confidence ?? 0.0,
+            csi_data: log.last_amplitudes,
+            rssi: log.last_rssi ?? -60,
+            frame: log.records_received,
+          }
+          if (inf?.system_state === 'POTENTIAL_FALL') {
+            livePayload.alert = {
+              type: 'fall_detected',
+              severity: 'high',
+              message: `ESP32 ML Fall Detected (${Math.round((inf.confidence ?? 0) * 100)}% confidence)`,
+              timestamp: livePayload.timestamp,
+            }
+          }
+          ingestFrame(livePayload)
+        }
+      } catch {
+        // ignore transient errors
+      }
+    }
+    pollEsp32()
+    const timer = window.setInterval(pollEsp32, 750)
+    return () => {
+      mounted = false
+      window.clearInterval(timer)
+    }
+  }, [backendHealthy, selectedRoomId])
+
   // Handle incoming frame (from either WS or simulator)
   const ingestFrame = (payload) => {
     setCurrentFrame(payload)
@@ -150,6 +211,27 @@ export function TelemetryProvider({ children }) {
 
     if (payload.activity === 'fall' && payload.alert) {
       setActiveAlert(payload.alert)
+      setEscalationState((prev) => {
+        if (prev === 'idle' || prev === 'recovered') {
+          setFallCountdown(30)
+          setDispatchedContacts([])
+          return 'counting'
+        }
+        return prev
+      })
+    }
+
+    // Auto-cancel 30s fall escalation if person stands up or walks within 30s
+    const actLower = String(payload.activity || '').toLowerCase()
+    if (actLower === 'walk' || actLower === 'stand') {
+      setEscalationState((prev) => {
+        if (prev === 'counting') {
+          setFallCountdown(null)
+          setActiveAlert(null)
+          return 'recovered'
+        }
+        return prev
+      })
     }
   }
 
@@ -312,6 +394,76 @@ export function TelemetryProvider({ children }) {
     }
   }
 
+  // Load saved emergency contacts from backend
+  useEffect(() => {
+    if (!backendHealthy) return
+    fetchEmergencyContacts()
+      .then((list) => {
+        setEmergencyContacts(list)
+        localStorage.setItem('wifi_radar_emergency_contacts', JSON.stringify(list))
+      })
+      .catch(() => {})
+  }, [backendHealthy])
+
+  // 30-second countdown timer when fall is active; auto-call & notify at 0s
+  useEffect(() => {
+    if (escalationState !== 'counting' || fallCountdown === null) return
+
+    if (fallCountdown <= 0) {
+      setEscalationState('escalated')
+      const roomObj = rooms.find((r) => r.id === selectedRoomId) || rooms[0]
+      setDispatchedContacts(emergencyContacts)
+      triggerEmergencyEscalationApi({
+        room_name: roomObj.name,
+        confidence: currentFrame?.confidence ?? 0.85,
+        elapsed_seconds: 30,
+      }).catch(() => {})
+      return
+    }
+
+    const timer = window.setTimeout(() => {
+      setFallCountdown((c) => (c !== null ? c - 1 : null))
+    }, 1000)
+    return () => window.clearTimeout(timer)
+  }, [escalationState, fallCountdown, emergencyContacts, rooms, selectedRoomId, currentFrame?.confidence])
+
+  const addEmergencyContact = async (contact) => {
+    const fallbackList = [...emergencyContacts, { id: Date.now(), ...contact }]
+    setEmergencyContacts(fallbackList)
+    localStorage.setItem('wifi_radar_emergency_contacts', JSON.stringify(fallbackList))
+    if (backendHealthy) {
+      try {
+        const updated = await addEmergencyContactApi(contact)
+        setEmergencyContacts(updated)
+        localStorage.setItem('wifi_radar_emergency_contacts', JSON.stringify(updated))
+      } catch {
+        // keep local list
+      }
+    }
+  }
+
+  const removeEmergencyContact = async (id) => {
+    const fallbackList = emergencyContacts.filter((c) => c.id !== id)
+    setEmergencyContacts(fallbackList)
+    localStorage.setItem('wifi_radar_emergency_contacts', JSON.stringify(fallbackList))
+    if (backendHealthy) {
+      try {
+        const updated = await deleteEmergencyContactApi(id)
+        setEmergencyContacts(updated)
+        localStorage.setItem('wifi_radar_emergency_contacts', JSON.stringify(updated))
+      } catch {
+        // keep local list
+      }
+    }
+  }
+
+  const cancelFallEscalation = () => {
+    setEscalationState('idle')
+    setFallCountdown(null)
+    setActiveAlert(null)
+    setDispatchedContacts([])
+  }
+
   const value = useMemo(
     () => ({
       rooms,
@@ -328,7 +480,15 @@ export function TelemetryProvider({ children }) {
       activities,
       incidents,
       activeAlert,
-      dismissAlert: () => setActiveAlert(null),
+      esp32Status,
+      emergencyContacts,
+      addEmergencyContact,
+      removeEmergencyContact,
+      fallCountdown,
+      escalationState,
+      dispatchedContacts,
+      cancelFallEscalation,
+      dismissAlert: cancelFallEscalation,
       triggerSimulatedFall,
       acknowledgeIncident,
       resolveIncident,
@@ -346,6 +506,11 @@ export function TelemetryProvider({ children }) {
       activities,
       incidents,
       activeAlert,
+      esp32Status,
+      emergencyContacts,
+      fallCountdown,
+      escalationState,
+      dispatchedContacts,
       settings,
     ]
   )

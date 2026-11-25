@@ -33,6 +33,11 @@ function AppShell() {
     incidents,
     activeAlert,
     dismissAlert,
+    fallCountdown,
+    escalationState,
+    emergencyContacts,
+    dispatchedContacts,
+    cancelFallEscalation,
     rooms,
     selectedRoomId,
     setSelectedRoomId,
@@ -52,8 +57,9 @@ function AppShell() {
       {/* Brand Mark */}
       <div className="px-5 py-5 border-b border-hairline flex items-center justify-between">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded bg-ink text-paper flex items-center justify-center">
-            <RadarMark className="w-4 h-4" />
+          <div className="w-8 h-8 rounded bg-ink text-paper flex items-center justify-center relative">
+            <RadarMark className="w-4 h-4 relative z-10" />
+            <span className="absolute inset-0 rounded bg-ink animate-radar-ping opacity-30" />
           </div>
           <div>
             <div className="text-sm font-semibold tracking-tight text-ink leading-none">
@@ -185,29 +191,78 @@ function AppShell() {
           </span>
         </header>
 
-        {/* Global Fall Alert Banner */}
+        {/* Global Fall Alert Banner with 30s Recovery Countdown & Auto-Call Escalation */}
         {activeAlert && (
-          <div className="bg-signal-alert-bg border-b border-signal-alert/30 px-4 sm:px-8 py-3 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5 text-signal-alert text-sm">
-              <AlertIcon className="w-4 h-4 flex-shrink-0" />
-              <span className="font-semibold">Priority Alert:</span>
-              <span>{activeAlert.message}</span>
+          <div className={`border-b px-4 sm:px-8 py-3 flex flex-wrap items-center justify-between gap-3 animate-alert-glow ${
+            escalationState === 'escalated'
+              ? 'bg-signal-alert text-white border-signal-alert'
+              : 'bg-signal-alert-bg text-signal-alert border-signal-alert/30'
+          }`}>
+            <div className="flex flex-col gap-0.5 text-sm">
+              <div className="flex items-center gap-2.5">
+                <AlertIcon className="w-4 h-4 flex-shrink-0" />
+                {escalationState === 'escalated' ? (
+                  <span className="font-semibold">
+                    NO RECOVERY IN 30s — Auto-Calling &amp; Notifying Emergency Contacts!
+                  </span>
+                ) : (
+                  <span className="font-semibold">
+                    Fall Detected — Waiting for person to stand up or walk ({fallCountdown ?? 30}s)
+                  </span>
+                )}
+              </div>
+              <div className="text-xs opacity-90 pl-6">
+                {escalationState === 'escalated' ? (
+                  dispatchedContacts.length > 0 ? (
+                    <span>
+                      Called &amp; Notified:{' '}
+                      {dispatchedContacts.map((c, idx) => (
+                        <span key={c.id || idx} className="font-mono font-semibold mr-2">
+                          {c.name} (<a href={`tel:${c.phone}`} className="underline">{c.phone}</a>)
+                        </span>
+                      ))}
+                    </span>
+                  ) : (
+                    <span>No emergency phone numbers saved yet — add contacts in the Emergency Contacts section.</span>
+                  )
+                ) : (
+                  <span>
+                    {activeAlert.message} · Will auto-call{' '}
+                    <strong>{emergencyContacts.length}</strong> saved emergency contact(s) if not up in {fallCountdown ?? 30}s.
+                  </span>
+                )}
+              </div>
             </div>
             <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={cancelFallEscalation}
+                className={`px-3 py-1 text-xs font-medium rounded ${
+                  escalationState === 'escalated'
+                    ? 'bg-white text-signal-alert hover:opacity-90'
+                    : 'bg-signal-ok text-white hover:opacity-90'
+                }`}
+              >
+                Person OK / Cancel
+              </button>
               <button
                 type="button"
                 onClick={() => {
                   dismissAlert()
                   navigate('/incidents')
                 }}
-                className="px-3 py-1 bg-signal-alert text-white text-xs font-medium rounded hover:opacity-90"
+                className={`px-3 py-1 text-xs font-medium rounded ${
+                  escalationState === 'escalated'
+                    ? 'bg-black/25 text-white hover:bg-black/35'
+                    : 'bg-signal-alert text-white hover:opacity-90'
+                }`}
               >
                 Open Triage
               </button>
               <button
                 type="button"
                 onClick={dismissAlert}
-                className="p-1 text-signal-alert hover:opacity-75"
+                className="p-1 hover:opacity-75"
                 aria-label="Dismiss alert"
               >
                 <CloseIcon className="w-4 h-4" />

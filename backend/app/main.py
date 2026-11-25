@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 
-from .api import auth, devices, rooms, activities, incidents, analytics, websocket
+from .api import auth, devices, rooms, activities, incidents, analytics, websocket, esp32
 from .database import engine, Base
 
 # Create database tables
@@ -39,6 +39,17 @@ app.include_router(activities.router, prefix="/api/activities", tags=["Activitie
 app.include_router(incidents.router, prefix="/api/incidents", tags=["Incidents"])
 app.include_router(analytics.router, prefix="/api/analytics", tags=["Analytics"])
 app.include_router(websocket.router, prefix="/ws", tags=["WebSocket"])
+app.include_router(esp32.router, prefix="/api/esp32", tags=["ESP32 Live"])
+
+
+@app.on_event("startup")
+async def on_startup():
+    esp32.start_esp32_pipeline()
+
+
+@app.on_event("shutdown")
+async def on_shutdown():
+    esp32.stop_esp32_pipeline()
 
 @app.get("/")
 async def root():

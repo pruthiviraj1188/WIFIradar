@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ResponsiveContainer, AreaChart, Area, YAxis } from 'recharts'
 import { useTelemetry } from '../context/TelemetryContext'
@@ -29,8 +29,22 @@ function Dashboard() {
     breathingHistory,
     activities,
     incidents,
+    esp32Status,
+    emergencyContacts,
+    addEmergencyContact,
+    removeEmergencyContact,
+    fallCountdown,
+    escalationState,
     triggerSimulatedFall,
   } = useTelemetry()
+  const [contactForm, setContactForm] = useState({ name: '', phone: '', relation: 'Family', email: '' })
+
+  const handleSaveContact = async (e) => {
+    e.preventDefault()
+    if (!contactForm.name.trim() || !contactForm.phone.trim()) return
+    await addEmergencyContact(contactForm)
+    setContactForm({ name: '', phone: '', relation: 'Family', email: '' })
+  }
 
   const activeDevices = rooms.filter((r) => r.status === 'online').length
   const pendingIncidents = incidents.filter((i) => i.status === 'pending').length
@@ -43,7 +57,7 @@ function Dashboard() {
   }))
 
   return (
-    <div className="space-y-7">
+    <div className="space-y-7 animate-fade-up">
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-5 border-b border-hairline">
         <div>
@@ -76,9 +90,41 @@ function Dashboard() {
         </div>
       </div>
 
+      {/* ESP32 Hardware & Local ML Pipeline Strip */}
+      {esp32Status && (
+        <div className="bg-surface border border-hairline rounded-md p-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div className="space-y-0.5">
+            <div className="text-[11px] font-mono uppercase tracking-wider text-ink-muted">
+              ESP32 Hardware &amp; Local ML Pipeline ({esp32Status.logger?.mode || 'HARDWARE_LIVE'})
+            </div>
+            <div className="text-sm font-medium text-ink">
+              Port: <span className="font-mono">{esp32Status.logger?.com_port || 'AUTO'}</span>
+              {' · '}
+              Packets Saved: <span className="font-mono">{esp32Status.logger?.records_saved ?? 0}</span>
+              {' · '}
+              Buffer: <span className="font-mono">{esp32Status.inference?.buffer_fill ?? 0}/{esp32Status.inference?.window_size ?? 200}</span>
+            </div>
+            {esp32Status.inference?.model_error && (
+              <div className="text-xs text-signal-warn">{esp32Status.inference.model_error}</div>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <span className={`px-2.5 py-1 rounded text-xs font-mono font-semibold ${
+              esp32Status.inference?.system_state === 'POTENTIAL_FALL'
+                ? 'bg-signal-alert-bg text-signal-alert'
+                : esp32Status.inference?.system_state === 'NORMAL_MONITORING'
+                ? 'bg-signal-ok/15 text-signal-ok'
+                : 'bg-paper text-ink-secondary border border-hairline'
+            }`}>
+              {esp32Status.inference?.system_state || 'INITIALIZING'}
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* KPI Strip */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <div className="bg-surface border border-hairline rounded-md p-5">
+        <div className="bg-surface border border-hairline rounded-md p-5 card-elevated">
           <div className="flex items-center justify-between text-ink-muted">
             <span className="text-[11px] font-mono uppercase tracking-wider">Active Nodes</span>
             <RadioNodeIcon className="w-4 h-4" />
@@ -94,7 +140,7 @@ function Dashboard() {
           </p>
         </div>
 
-        <div className="bg-surface border border-hairline rounded-md p-5">
+        <div className="bg-surface border border-hairline rounded-md p-5 card-elevated">
           <div className="flex items-center justify-between text-ink-muted">
             <span className="text-[11px] font-mono uppercase tracking-wider">Events Logged</span>
             <WaveformIcon className="w-4 h-4" />
@@ -113,7 +159,7 @@ function Dashboard() {
           </p>
         </div>
 
-        <div className="bg-surface border border-hairline rounded-md p-5">
+        <div className="bg-surface border border-hairline rounded-md p-5 card-elevated">
           <div className="flex items-center justify-between text-ink-muted">
             <span className="text-[11px] font-mono uppercase tracking-wider">Pending Incidents</span>
             <AlertIcon className="w-4 h-4" />
@@ -336,6 +382,86 @@ function Dashboard() {
             </tbody>
           </table>
         </div>
+      </div>
+
+      {/* Emergency Contacts Area (Auto-Called if person does not stand up within 30s) */}
+      <div className="bg-surface border border-hairline rounded-md p-5 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <h2 className="text-sm font-semibold text-ink">
+              Emergency Contacts (30s Auto-Call &amp; Notification)
+            </h2>
+            <p className="text-xs text-ink-secondary mt-0.5">
+              If a fall is detected and the person does not stand up or walk within 30 seconds, these saved phone numbers are automatically called and notified.
+            </p>
+          </div>
+          {escalationState === 'counting' && (
+            <span className="px-3 py-1 rounded text-xs font-mono font-semibold bg-signal-alert-bg text-signal-alert">
+              Countdown: {fallCountdown}s
+            </span>
+          )}
+        </div>
+
+        <form onSubmit={handleSaveContact} className="grid grid-cols-1 sm:grid-cols-4 gap-2.5">
+          <input
+            type="text"
+            placeholder="Contact Name (e.g. Son / Doctor)"
+            value={contactForm.name}
+            onChange={(e) => setContactForm((p) => ({ ...p, name: e.target.value }))}
+            className="px-3 py-2 text-xs bg-paper border border-hairline rounded text-ink"
+            required
+          />
+          <input
+            type="tel"
+            placeholder="Phone Number (e.g. +91 98765 43210)"
+            value={contactForm.phone}
+            onChange={(e) => setContactForm((p) => ({ ...p, phone: e.target.value }))}
+            className="px-3 py-2 text-xs bg-paper border border-hairline rounded text-ink font-mono"
+            required
+          />
+          <input
+            type="text"
+            placeholder="Relation (Family / Caregiver)"
+            value={contactForm.relation}
+            onChange={(e) => setContactForm((p) => ({ ...p, relation: e.target.value }))}
+            className="px-3 py-2 text-xs bg-paper border border-hairline rounded text-ink"
+          />
+          <button
+            type="submit"
+            className="px-4 py-2 text-xs font-medium bg-ink text-paper rounded hover:bg-ink/85 transition-colors"
+          >
+            Save Emergency Number
+          </button>
+        </form>
+
+        {emergencyContacts.length === 0 ? (
+          <div className="text-xs text-ink-muted py-2">
+            No emergency phone numbers saved yet. Add at least one number above.
+          </div>
+        ) : (
+          <div className="divide-y divide-hairline border border-hairline rounded">
+            {emergencyContacts.map((c) => (
+              <div key={c.id} className="flex items-center justify-between px-4 py-2.5 text-xs">
+                <div className="flex items-center gap-3">
+                  <span className="font-semibold text-ink">{c.name}</span>
+                  <span className="px-2 py-0.5 rounded bg-paper border border-hairline text-ink-muted">
+                    {c.relation}
+                  </span>
+                  <a href={`tel:${c.phone}`} className="font-mono text-ink underline">
+                    {c.phone}
+                  </a>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeEmergencyContact(c.id)}
+                  className="text-signal-alert hover:underline font-medium"
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )
