@@ -56,18 +56,22 @@ frontend/.vite/
 .env.local
 .env.*.local
 
-# Datasets (large files)
-datasets/raw/
+# Datasets (large files - keep structure but not data)
+datasets/raw/*
+!datasets/raw/.gitkeep
 *.pkl
 *.h5
 *.hdf5
 
-# Model files (large)
-*.joblib
-*.pkl
-*.pth
-*.pt
-*.onnx
+# Model files (large - keep metrics but not models)
+ai/saved_models/*.joblib
+ai/saved_models/*.pkl
+ai/saved_models/*.pth
+ai/saved_models/*.pt
+ai/saved_models/*.onnx
+!ai/saved_models/.gitkeep
+!ai/saved_models/README.md
+!ai/saved_models/*.json
 
 # Jupyter
 .ipynb_checkpoints/
