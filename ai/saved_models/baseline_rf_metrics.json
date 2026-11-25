@@ -1,0 +1,17 @@
+{
+  "train_accuracy": 0.9778571428571429,
+  "val_accuracy": 0.563,
+  "test_accuracy": 0.5535,
+  "num_features": 38,
+  "num_samples_train": 7000,
+  "num_samples_val": 1000,
+  "num_samples_test": 2000,
+  "num_classes": 5,
+  "class_distribution": {
+    "Jump": 1998,
+    "fall": 5150,
+    "sit": 960,
+    "stand": 947,
+    "walk": 945
+  }
+}
