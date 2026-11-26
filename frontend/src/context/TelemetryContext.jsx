@@ -419,11 +419,55 @@ export function TelemetryProvider({ children }) {
       setEscalationState('escalated')
       const roomObj = rooms.find((r) => r.id === selectedRoomId) || rooms[0]
       setDispatchedContacts(emergencyContacts)
+      
+      // Call backend API
       triggerEmergencyEscalationApi({
         room_name: roomObj.name,
         confidence: currentFrame?.confidence ?? 0.85,
         elapsed_seconds: 30,
       }).catch(() => {})
+      
+      // Make REAL calls/notifications to all emergency contacts
+      emergencyContacts.forEach(async (contact) => {
+        try {
+          const apiUrl = DEFAULT_API_BASE || ''
+          
+          // Determine which endpoint to use based on phone format
+          let endpoint = '/api/emergency/telegram' // Default to Telegram
+          
+          if (contact.phone.includes('telegram:')) {
+            endpoint = '/api/emergency/telegram'
+          } else if (contact.phone.match(/^\+?\d{10,15}$/)) {
+            // Real phone number - try Twilio
+            endpoint = '/api/emergency/twilio-call'
+          }
+          
+          const response = await fetch(`${apiUrl}${endpoint}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              phone: contact.phone,
+              name: contact.name,
+              relation: contact.relation,
+              room_name: roomObj.name,
+              timestamp: new Date().toISOString(),
+              confidence: currentFrame?.confidence ?? 0.85
+            })
+          })
+          
+          const result = await response.json()
+          console.log(`📞 Emergency notification to ${contact.name}:`, result)
+          
+          if (result.success) {
+            console.log(`✅ Successfully notified ${contact.name} via ${result.platform}`)
+          } else {
+            console.error(`❌ Failed to notify ${contact.name}:`, result.error)
+          }
+        } catch (error) {
+          console.error(`❌ Error notifying ${contact.name}:`, error)
+        }
+      })
+      
       return
     }
 
