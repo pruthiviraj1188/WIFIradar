@@ -92,6 +92,7 @@ async def csi_stream(websocket: WebSocket, room_id: int):
     current_activity = "stand"
     activity_duration = 0
     max_duration = random.randint(30, 100)  # frames before activity change
+    breathing_phase = 0.0  # For breathing rate simulation
 
     try:
         while True:
@@ -105,6 +106,23 @@ async def csi_stream(websocket: WebSocket, room_id: int):
             csi = _generate_csi_sample(current_activity, t)
             confidence = round(random.uniform(0.6, 0.98), 3)
 
+            # Generate breathing rate (12-20 BPM normal range)
+            # Simulate realistic breathing patterns with slight variations
+            base_bpm = 15.5
+            if current_activity == "walk":
+                base_bpm = 18.0  # Faster breathing when walking
+            elif current_activity == "Jump":
+                base_bpm = 22.0  # Even faster when jumping
+            elif current_activity == "fall":
+                base_bpm = 24.0  # Irregular/fast after fall
+            elif current_activity in ["sit", "stand"]:
+                base_bpm = 14.5  # Slower at rest
+            
+            # Add natural variation
+            breathing_bpm = round(base_bpm + math.sin(breathing_phase) * 1.5 + random.gauss(0, 0.3), 1)
+            breathing_bpm = max(10.0, min(26.0, breathing_bpm))  # Clamp to realistic range
+            breathing_phase += 0.1
+
             payload = {
                 "type": "csi_update",
                 "room_id": room_id,
@@ -113,7 +131,8 @@ async def csi_stream(websocket: WebSocket, room_id: int):
                 "confidence": confidence,
                 "csi_data": csi,
                 "rssi": random.randint(-75, -30),
-                "frame": int(t * 10)
+                "frame": int(t * 10),
+                "breathing_bpm": breathing_bpm,  # Add breathing rate to payload
             }
 
             # Send fall alert if activity is fall

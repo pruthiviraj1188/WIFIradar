@@ -122,6 +122,11 @@ export function generateSimulatedCsiFrame(activity, t, roomId = 1, frame = 0) {
   const confidence = Number((0.74 + Math.random() * 0.23).toFixed(3))
   const rssi = Math.round(-58 + (Math.random() - 0.5) * 14)
 
+  // Generate breathing rate (12-20 BPM normal range)
+  const bpmMap = { walk: 18.0, stand: 14.5, sit: 14.5, Jump: 22.0, fall: 24.0 }
+  const baseBpm = bpmMap[activity] ?? 15.5
+  const breathing_bpm = Number((baseBpm + Math.sin(t * 0.5) * 1.5 + (Math.random() - 0.5) * 0.6).toFixed(1))
+
   const payload = {
     type: 'csi_update',
     room_id: roomId,
@@ -131,6 +136,7 @@ export function generateSimulatedCsiFrame(activity, t, roomId = 1, frame = 0) {
     csi_data,
     rssi,
     frame,
+    breathing_bpm,  // Add breathing rate
   }
 
   if (activity === 'fall') {

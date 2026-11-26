@@ -190,14 +190,20 @@ export function TelemetryProvider({ children }) {
         : 0.1
 
     setBreathingHistory((prev) => {
-      const nextBpm =
-        payload.activity === 'fall'
-          ? 22.4
-          : payload.activity === 'Jump'
-          ? 20.1
-          : payload.activity === 'walk'
-          ? 17.8
-          : 15.2 + Math.sin(payload.frame * 0.2) * 0.9
+      // Use breathing_bpm from payload if available, otherwise calculate from activity
+      let nextBpm
+      if (payload.breathing_bpm !== undefined && payload.breathing_bpm !== null) {
+        nextBpm = payload.breathing_bpm
+      } else {
+        nextBpm =
+          payload.activity === 'fall'
+            ? 22.4
+            : payload.activity === 'Jump'
+            ? 20.1
+            : payload.activity === 'walk'
+            ? 17.8
+            : 15.2 + Math.sin(payload.frame * 0.2) * 0.9
+      }
       const next = [
         ...prev.slice(-27),
         {

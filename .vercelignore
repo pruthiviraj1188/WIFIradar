@@ -1,0 +1,12 @@
+venv/
+node_modules/
+__pycache__/
+*.pyc
+*.db
+.env
+.env.local
+.DS_Store
+datasets/raw/
+*.log
+ai/saved_models/*.pkl
+data_collection/recordings/
