@@ -1,23 +1,8 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ResponsiveContainer, AreaChart, Area, YAxis } from 'recharts'
+import { ResponsiveContainer, AreaChart, Area } from 'recharts'
+import Room3DVisualization from '../components/Room3D'
 import { useTelemetry } from '../context/TelemetryContext'
-import {
-  AlertIcon,
-  ArrowRightIcon,
-  CheckCircleIcon,
-  RadioNodeIcon,
-  WaveformIcon,
-} from '../components/Icons'
-
-function formatRelativeTime(iso) {
-  const diffSec = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000))
-  if (diffSec < 60) return `${diffSec}s ago`
-  const diffMin = Math.floor(diffSec / 60)
-  if (diffMin < 60) return `${diffMin}m ago`
-  const diffHr = Math.floor(diffMin / 60)
-  return `${diffHr}h ago`
-}
 
 function Dashboard() {
   const navigate = useNavigate()
@@ -27,441 +12,363 @@ function Dashboard() {
     setSelectedRoomId,
     currentFrame,
     breathingHistory,
-    activities,
     incidents,
-    esp32Status,
     emergencyContacts,
     addEmergencyContact,
     removeEmergencyContact,
+    userLocation,
+    nearestHospital,
+    updateLocationSettings,
+    elapsedFallSeconds,
     fallCountdown,
+    hospitalCountdown,
     escalationState,
+    dispatchedLog,
+    cancelFallEscalation,
     triggerSimulatedFall,
   } = useTelemetry()
-  const [contactForm, setContactForm] = useState({ name: '', phone: '', relation: 'Family', email: '' })
 
-  const handleSaveContact = async (e) => {
-    e.preventDefault()
-    if (!contactForm.name.trim() || !contactForm.phone.trim()) return
-    await addEmergencyContact(contactForm)
-    setContactForm({ name: '', phone: '', relation: 'Family', email: '' })
-  }
+  const [contactForm, setContactForm] = useState({ name: '', phone: '', relation: 'Family' })
+  const [addressInput, setAddressInput] = useState(userLocation.address || '')
+  const [hospitalPhoneInput, setHospitalPhoneInput] = useState(nearestHospital.phone || '108')
+  const [savedToast, setSavedToast] = useState(false)
 
-  const activeDevices = rooms.filter((r) => r.status === 'online').length
-  const pendingIncidents = incidents.filter((i) => i.status === 'pending').length
-  const latestBpm = breathingHistory[breathingHistory.length - 1]?.bpm ?? 15.6
   const activeRoom = rooms.find((r) => r.id === selectedRoomId) || rooms[0]
+  const latestBpm = breathingHistory[breathingHistory.length - 1]?.bpm ?? 15.6
+  const pendingIncidents = incidents.filter((i) => i.status === 'pending').length
 
   const sparkData = (currentFrame.csi_data || []).map((amp, idx) => ({
     subcarrier: idx + 1,
     amp,
   }))
 
+  const handleSaveContact = async (e) => {
+    e.preventDefault()
+    if (!contactForm.name.trim() || !contactForm.phone.trim()) return
+    await addEmergencyContact(contactForm)
+    setContactForm({ name: '', phone: '', relation: 'Family' })
+  }
+
+  const handleSaveLocation = (e) => {
+    e.preventDefault()
+    updateLocationSettings(addressInput, hospitalPhoneInput)
+    setSavedToast(true)
+    setTimeout(() => setSavedToast(false), 2500)
+  }
+
+  const isEmergencyActive =
+    escalationState === 'counting_contact' ||
+    escalationState === 'counting_hospital' ||
+    escalationState === 'hospital_dispatched'
+
   return (
-    <div className="space-y-7 animate-fade-up">
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-5 border-b border-hairline">
+    <div className="space-y-6 text-slate-100">
+
+      {/* Top Minimal Spatial Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900/80 backdrop-blur-xl border border-white/10 rounded-2xl px-6 py-4 shadow-xl">
         <div>
-          <p className="text-[11px] font-mono uppercase tracking-widest text-ink-muted">
-            System Overview
-          </p>
-          <h1 className="text-2xl font-semibold tracking-tight text-ink mt-1">
-            Monitoring Summary
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+            <span className="text-[11px] font-mono uppercase tracking-widest text-cyan-400">
+              WiFi-Radar Spatial Console
+            </span>
+          </div>
+          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-white mt-0.5">
+            {activeRoom.name} · Live 3D Sensing
           </h1>
-          <p className="text-sm text-ink-secondary mt-1">
-            Contactless WiFi CSI activity, fall detection, and respiratory telemetry across monitored zones.
-          </p>
         </div>
-        <div className="flex items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2.5">
+          <select
+            value={selectedRoomId}
+            onChange={(e) => setSelectedRoomId(Number(e.target.value))}
+            className="bg-slate-950/90 border border-white/15 rounded-xl px-3.5 py-2 text-xs font-medium text-slate-200 focus:outline-none focus:border-cyan-400"
+          >
+            {rooms.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.name} ({r.deviceName})
+              </option>
+            ))}
+          </select>
           <button
             type="button"
             onClick={triggerSimulatedFall}
-            className="px-3.5 py-2 text-xs font-medium border border-signal-alert/40 text-signal-alert bg-signal-alert-bg rounded hover:bg-signal-alert hover:text-white transition-colors"
+            className="px-4 py-2 text-xs font-semibold rounded-xl bg-red-500/20 border border-red-500/40 text-red-300 hover:bg-red-500 hover:text-white transition-all"
           >
-            Simulate Fall Alert
+            Test Fall (30s → 45s)
           </button>
           <button
             type="button"
             onClick={() => navigate('/live')}
-            className="px-3.5 py-2 text-xs font-medium bg-ink text-paper rounded hover:bg-ink/85 transition-colors inline-flex items-center gap-1.5"
+            className="px-4 py-2 text-xs font-semibold rounded-xl bg-cyan-500 text-slate-950 hover:bg-cyan-400 transition-all"
           >
-            <span>Open Live Console</span>
-            <ArrowRightIcon className="w-3.5 h-3.5" />
+            Full Telemetry →
           </button>
         </div>
       </div>
 
-      {/* ESP32 Hardware & Local ML Pipeline Strip */}
-      {esp32Status && (
-        <div className="bg-surface border border-hairline rounded-md p-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
-          <div className="space-y-0.5">
-            <div className="text-[11px] font-mono uppercase tracking-wider text-ink-muted">
-              ESP32 Hardware &amp; Local ML Pipeline ({esp32Status.logger?.mode || 'HARDWARE_LIVE'})
+      {/* Live Emergency Escalation Banner (0s -> 30s Contact -> 45s Hospital + GPS) */}
+      {isEmergencyActive && (
+        <div className="rounded-2xl border border-red-500/50 bg-gradient-to-r from-red-950/90 via-slate-900/95 to-red-950/90 backdrop-blur-xl p-5 shadow-2xl animate-pulse">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-2.5">
+                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold uppercase bg-red-500 text-white">
+                  Fall Detected · {elapsedFallSeconds}s Elapsed
+                </span>
+                <span className="text-xs font-mono text-red-200">
+                  GPS: {userLocation.lat.toFixed(4)}, {userLocation.lng.toFixed(4)}
+                </span>
+              </div>
+              <h2 className="text-base sm:text-lg font-semibold text-white">
+                {escalationState === 'counting_contact' &&
+                  `Calling Emergency Contact in ${fallCountdown}s (Hospital + GPS dispatch in ${hospitalCountdown}s)`}
+                {escalationState === 'counting_hospital' &&
+                  `Emergency Contact Alerted! Calling Nearby Hospital & Sharing GPS in ${hospitalCountdown}s`}
+                {escalationState === 'hospital_dispatched' &&
+                  `Hospital & Emergency Contact Called — Live GPS Location Shared!`}
+              </h2>
+              {dispatchedLog.length > 0 && (
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {dispatchedLog.map((d, idx) => (
+                    <span
+                      key={idx}
+                      className="text-xs font-mono px-2.5 py-1 rounded-lg bg-white/10 text-emerald-300 border border-emerald-400/30"
+                    >
+                      ✓ {d.tier === 'hospital' ? 'Hospital' : 'Contact'}: {d.name} ({d.phone || 'Telegram Pin'}) @ {d.time}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
-            <div className="text-sm font-medium text-ink">
-              Port: <span className="font-mono">{esp32Status.logger?.com_port || 'AUTO'}</span>
-              {' · '}
-              Packets Saved: <span className="font-mono">{esp32Status.logger?.records_saved ?? 0}</span>
-              {' · '}
-              Buffer: <span className="font-mono">{esp32Status.inference?.buffer_fill ?? 0}/{esp32Status.inference?.window_size ?? 200}</span>
-            </div>
-            {esp32Status.inference?.model_error && (
-              <div className="text-xs text-signal-warn">{esp32Status.inference.model_error}</div>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            <span className={`px-2.5 py-1 rounded text-xs font-mono font-semibold ${
-              esp32Status.inference?.system_state === 'POTENTIAL_FALL'
-                ? 'bg-signal-alert-bg text-signal-alert'
-                : esp32Status.inference?.system_state === 'NORMAL_MONITORING'
-                ? 'bg-signal-ok/15 text-signal-ok'
-                : 'bg-paper text-ink-secondary border border-hairline'
-            }`}>
-              {esp32Status.inference?.system_state || 'INITIALIZING'}
-            </span>
+            <button
+              type="button"
+              onClick={cancelFallEscalation}
+              className="px-5 py-3 rounded-xl text-xs font-bold uppercase tracking-wider bg-emerald-500 text-slate-950 hover:bg-emerald-400 shadow-lg flex-shrink-0"
+            >
+              I Am Okay · Cancel Alert
+            </button>
           </div>
         </div>
       )}
 
-      {/* KPI Strip */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <div className="bg-surface border border-hairline rounded-md p-5 card-elevated">
-          <div className="flex items-center justify-between text-ink-muted">
-            <span className="text-[11px] font-mono uppercase tracking-wider">Active Nodes</span>
-            <RadioNodeIcon className="w-4 h-4" />
-          </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-semibold font-mono tabular-nums text-ink">
-              {activeDevices}
-            </span>
-            <span className="text-xs font-mono text-ink-muted">/ {rooms.length} deployed</span>
-          </div>
-          <p className="mt-2 text-xs text-signal-ok font-medium">
-            All primary ESP32 links nominal
-          </p>
-        </div>
-
-        <div className="bg-surface border border-hairline rounded-md p-5 card-elevated">
-          <div className="flex items-center justify-between text-ink-muted">
-            <span className="text-[11px] font-mono uppercase tracking-wider">Events Logged</span>
-            <WaveformIcon className="w-4 h-4" />
-          </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-semibold font-mono tabular-nums text-ink">
-              {120 + activities.length}
-            </span>
-            <span className="text-xs font-mono text-ink-muted">24h window</span>
-          </div>
-          <p className="mt-2 text-xs text-ink-secondary">
-            Current state:{' '}
-            <span className="font-mono uppercase font-semibold text-ink">
-              {currentFrame.activity}
-            </span>
-          </p>
-        </div>
-
-        <div className="bg-surface border border-hairline rounded-md p-5 card-elevated">
-          <div className="flex items-center justify-between text-ink-muted">
-            <span className="text-[11px] font-mono uppercase tracking-wider">Pending Incidents</span>
-            <AlertIcon className="w-4 h-4" />
-          </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span
-              className={`text-3xl font-semibold font-mono tabular-nums ${
-                pendingIncidents > 0 ? 'text-signal-alert' : 'text-ink'
-              }`}
-            >
-              {pendingIncidents}
-            </span>
-            <span className="text-xs font-mono text-ink-muted">
-              {incidents.length} total logged
-            </span>
-          </div>
-          <p className="mt-2 text-xs text-ink-secondary">
-            {pendingIncidents > 0 ? 'Requires caregiver acknowledgment' : 'No unacknowledged alerts'}
-          </p>
-        </div>
-
-        <div className="bg-surface border border-hairline rounded-md p-5">
-          <div className="flex items-center justify-between text-ink-muted">
-            <span className="text-[11px] font-mono uppercase tracking-wider">Respiration Est.</span>
-            <CheckCircleIcon className="w-4 h-4" />
-          </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-semibold font-mono tabular-nums text-ink">
-              {latestBpm}
-            </span>
-            <span className="text-xs font-mono text-ink-muted">BPM</span>
-          </div>
-          <p className="mt-2 text-xs text-signal-ok font-medium">
-            Within 12–20 BPM resting range
-          </p>
-        </div>
+      {/* Hero 3D Spatial Room View */}
+      <div className="rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
+        <Room3DVisualization
+          activity={currentFrame.activity}
+          confidence={currentFrame.confidence}
+          rssi={currentFrame.rssi}
+          breathingBpm={latestBpm}
+          roomName={activeRoom.name}
+          fullScreen
+        />
       </div>
 
-      {/* Middle Split: Live CSI Preview + Monitored Zones */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        {/* CSI Subcarrier Snapshot */}
-        <div className="lg:col-span-2 bg-surface border border-hairline rounded-md p-5 flex flex-col justify-between">
-          <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-            <div>
-              <h2 className="text-sm font-semibold text-ink">
-                Live 52-Subcarrier CSI Envelope
-              </h2>
-              <p className="text-xs text-ink-secondary mt-0.5">
-                {activeRoom.name} ({activeRoom.deviceName}) · Confidence{' '}
-                <span className="font-mono tabular-nums text-ink">
-                  {Math.round(currentFrame.confidence * 100)}%
-                </span>
-              </p>
-            </div>
-            <div className="flex items-center gap-3 text-xs font-mono tabular-nums">
-              <span className="px-2 py-1 bg-subtle rounded text-ink">
-                RSSI {currentFrame.rssi} dBm
-              </span>
-              <span
-                className={`px-2 py-1 rounded uppercase font-semibold ${
-                  currentFrame.activity === 'fall'
-                    ? 'bg-signal-alert-bg text-signal-alert'
-                    : 'bg-signal-ok-bg text-signal-ok'
-                }`}
-              >
-                {currentFrame.activity}
-              </span>
-            </div>
+      {/* Clean 3-Card Vital & CSI Strip */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-slate-900/75 backdrop-blur-xl border border-white/10 rounded-2xl p-5">
+          <div className="text-[11px] font-mono uppercase tracking-wider text-slate-400">
+            Respiration &amp; Vitals
           </div>
+          <div className="mt-2 flex items-baseline justify-between">
+            <div>
+              <span className="text-3xl font-semibold font-mono text-white">{latestBpm}</span>
+              <span className="text-xs font-mono text-cyan-400 ml-1.5">BPM</span>
+            </div>
+            <span className="text-xs px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-300 font-mono">
+              Normal Rhythm
+            </span>
+          </div>
+          <p className="text-xs text-slate-400 mt-2">
+            Contactless chest micro-motion via 2.4 GHz CSI
+          </p>
+        </div>
 
-          <div className="h-44 w-full">
+        <div className="bg-slate-900/75 backdrop-blur-xl border border-white/10 rounded-2xl p-5">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-mono uppercase tracking-wider text-slate-400">
+              52-Subcarrier Envelope
+            </span>
+            <span className="text-xs font-mono text-cyan-300">{currentFrame.rssi} dBm</span>
+          </div>
+          <div className="h-16 w-full mt-2">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={sparkData} margin={{ top: 6, right: 6, left: -24, bottom: 0 }}>
-                <YAxis
-                  domain={[-1.1, 1.1]}
-                  tick={{ fontSize: 10, fill: '#85827A', fontFamily: 'IBM Plex Mono' }}
-                  tickCount={3}
-                  axisLine={false}
-                  tickLine={false}
-                />
+              <AreaChart data={sparkData}>
                 <Area
                   type="monotone"
                   dataKey="amp"
-                  stroke={currentFrame.activity === 'fall' ? '#B42318' : '#181816'}
-                  strokeWidth={1.75}
-                  fill={currentFrame.activity === 'fall' ? '#FCECEB' : '#EFEDE7'}
+                  stroke={currentFrame.activity === 'fall' ? '#EF4444' : '#06B6D4'}
+                  strokeWidth={2}
+                  fill={currentFrame.activity === 'fall' ? '#EF444433' : '#06B6D422'}
                   isAnimationActive={false}
                 />
               </AreaChart>
             </ResponsiveContainer>
           </div>
+        </div>
 
-          <div className="mt-3 pt-3 border-t border-hairline flex items-center justify-between text-xs text-ink-muted font-mono">
-            <span>Subcarriers 1–52 (2.4 GHz HT20)</span>
+        <div className="bg-slate-900/75 backdrop-blur-xl border border-white/10 rounded-2xl p-5 flex flex-col justify-between">
+          <div>
+            <div className="text-[11px] font-mono uppercase tracking-wider text-slate-400">
+              Active Escalation Rules
+            </div>
+            <div className="mt-2 space-y-1 text-xs text-slate-300">
+              <div className="flex justify-between">
+                <span>30s Unresponsive:</span>
+                <span className="font-mono text-cyan-300">Call Saved Contact</span>
+              </div>
+              <div className="flex justify-between">
+                <span>45s Unresponsive:</span>
+                <span className="font-mono text-amber-300">Call Hospital + GPS</span>
+              </div>
+            </div>
+          </div>
+          <div className="pt-2 border-t border-white/10 flex items-center justify-between text-xs">
+            <span className="text-slate-400">Pending Alerts: {pendingIncidents}</span>
             <button
               type="button"
-              onClick={() => navigate('/live')}
-              className="text-ink hover:underline font-sans font-medium"
+              onClick={() => navigate('/incidents')}
+              className="text-cyan-400 hover:underline font-medium"
             >
-              Inspect 3D spatial view →
+              View Logs →
             </button>
           </div>
         </div>
-
-        {/* Monitored Zones */}
-        <div className="bg-surface border border-hairline rounded-md p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-semibold text-ink">Monitored Zones</h2>
-            <span className="text-[11px] font-mono text-ink-muted">{rooms.length} rooms</span>
-          </div>
-          <div className="space-y-2.5">
-            {rooms.map((room) => {
-              const selected = room.id === selectedRoomId
-              return (
-                <button
-                  key={room.id}
-                  type="button"
-                  onClick={() => setSelectedRoomId(room.id)}
-                  className={`w-full text-left p-3 rounded border transition-colors ${
-                    selected
-                      ? 'border-ink bg-paper'
-                      : 'border-hairline bg-surface hover:bg-paper/60'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-ink">{room.name}</span>
-                    <span
-                      className={`text-[10px] font-mono uppercase px-1.5 py-0.5 rounded ${
-                        room.status === 'online'
-                          ? 'bg-signal-ok-bg text-signal-ok'
-                          : 'bg-subtle text-ink-secondary'
-                      }`}
-                    >
-                      {room.status}
-                    </span>
-                  </div>
-                  <div className="mt-1 flex items-center justify-between text-xs text-ink-muted font-mono">
-                    <span>{room.deviceName}</span>
-                    <span className="tabular-nums">{room.rssi} dBm</span>
-                  </div>
-                </button>
-              )
-            })}
-          </div>
-          <button
-            type="button"
-            onClick={() => navigate('/settings')}
-            className="mt-4 w-full py-2 text-xs font-medium text-ink border border-hairline rounded hover:bg-subtle transition-colors"
-          >
-            Configure Hardware Nodes
-          </button>
-        </div>
       </div>
 
-      {/* Activity Ledger Table */}
-      <div className="bg-surface border border-hairline rounded-md overflow-hidden">
-        <div className="px-5 py-4 border-b border-hairline flex items-center justify-between">
-          <div>
-            <h2 className="text-sm font-semibold text-ink">Recent Activity Ledger</h2>
-            <p className="text-xs text-ink-secondary mt-0.5">
-              Classified motion transitions from the CSI pipeline
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => navigate('/analytics')}
-            className="text-xs font-medium text-ink hover:underline"
-          >
-            View full trends →
-          </button>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-paper border-b border-hairline text-[11px] font-mono uppercase tracking-wider text-ink-muted">
-                <th className="py-2.5 px-5 font-medium">Activity</th>
-                <th className="py-2.5 px-5 font-medium">Zone</th>
-                <th className="py-2.5 px-5 font-medium">Confidence</th>
-                <th className="py-2.5 px-5 font-medium">Time</th>
-                <th className="py-2.5 px-5 font-medium text-right">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-hairline text-sm">
-              {activities.slice(0, 7).map((item) => {
-                const isFall = item.activity.toLowerCase() === 'fall'
-                return (
-                  <tr key={item.id} className="hover:bg-paper/60 transition-colors">
-                    <td className="py-3 px-5 font-medium text-ink capitalize">
-                      {item.activity}
-                    </td>
-                    <td className="py-3 px-5 text-ink-secondary">{item.roomName}</td>
-                    <td className="py-3 px-5 font-mono text-xs tabular-nums text-ink">
-                      <div className="flex items-center gap-2">
-                        <div className="w-16 h-1.5 bg-subtle rounded overflow-hidden">
-                          <div
-                            className={`h-full ${isFall ? 'bg-signal-alert' : 'bg-ink'}`}
-                            style={{ width: `${Math.round(item.confidence * 100)}%` }}
-                          />
-                        </div>
-                        <span>{Math.round(item.confidence * 100)}%</span>
-                      </div>
-                    </td>
-                    <td className="py-3 px-5 font-mono text-xs text-ink-muted tabular-nums">
-                      {formatRelativeTime(item.timestamp)}
-                    </td>
-                    <td className="py-3 px-5 text-right">
-                      <span
-                        className={`inline-block px-2 py-0.5 text-[11px] font-mono uppercase rounded ${
-                          isFall
-                            ? 'bg-signal-alert-bg text-signal-alert font-semibold'
-                            : 'bg-signal-ok-bg text-signal-ok'
-                        }`}
-                      >
-                        {isFall ? 'Alert' : 'Normal'}
-                      </span>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      {/* Emergency Contacts & Hospital Location Dispatch Setup */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
 
-      {/* Emergency Contacts Area (Auto-Called if person does not stand up within 30s) */}
-      <div className="bg-surface border border-hairline rounded-md p-5 space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        {/* Saved Emergency Contacts (Called at 30s) */}
+        <div className="bg-slate-900/75 backdrop-blur-xl border border-white/10 rounded-2xl p-5 space-y-4">
           <div>
-            <h2 className="text-sm font-semibold text-ink">
-              Emergency Contacts (30s Auto-Call &amp; Notification)
-            </h2>
-            <p className="text-xs text-ink-secondary mt-0.5">
-              If a fall is detected and the person does not stand up or walk within 30 seconds, these saved phone numbers are automatically called and notified.
-            </p>
-          </div>
-          {escalationState === 'counting' && (
-            <span className="px-3 py-1 rounded text-xs font-mono font-semibold bg-signal-alert-bg text-signal-alert">
-              Countdown: {fallCountdown}s
+            <span className="text-[10px] font-mono uppercase tracking-widest text-cyan-400">
+              Stage 1 · 30 Seconds
             </span>
-          )}
+            <h2 className="text-base font-semibold text-white mt-0.5">
+              Emergency Contact Numbers
+            </h2>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Automatically called &amp; sent your live GPS pin if no walk/stand is detected within 30s.
+            </p>
+          </div>
+
+          <form onSubmit={handleSaveContact} className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <input
+              type="text"
+              placeholder="Name (e.g. Father)"
+              value={contactForm.name}
+              onChange={(e) => setContactForm((p) => ({ ...p, name: e.target.value }))}
+              className="px-3 py-2 text-xs bg-slate-950/90 border border-white/15 rounded-xl text-white placeholder:text-slate-500"
+              required
+            />
+            <input
+              type="tel"
+              placeholder="Phone (+91 98765...)"
+              value={contactForm.phone}
+              onChange={(e) => setContactForm((p) => ({ ...p, phone: e.target.value }))}
+              className="px-3 py-2 text-xs bg-slate-950/90 border border-white/15 rounded-xl text-white font-mono placeholder:text-slate-500"
+              required
+            />
+            <button
+              type="submit"
+              className="px-3 py-2 text-xs font-semibold rounded-xl bg-cyan-500 text-slate-950 hover:bg-cyan-400 transition-colors"
+            >
+              + Save Contact
+            </button>
+          </form>
+
+          <div className="space-y-2">
+            {emergencyContacts.length === 0 ? (
+              <p className="text-xs text-slate-500 py-2">
+                No emergency numbers saved yet. Add a family member or caregiver above.
+              </p>
+            ) : (
+              emergencyContacts.map((c) => (
+                <div
+                  key={c.id}
+                  className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-slate-950/70 border border-white/10 text-xs"
+                >
+                  <div>
+                    <span className="font-semibold text-white">{c.name}</span>
+                    <span className="ml-2 font-mono text-cyan-300">{c.phone}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeEmergencyContact(c.id)}
+                    className="text-red-400 hover:text-red-300 text-xs"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
         </div>
 
-        <form onSubmit={handleSaveContact} className="grid grid-cols-1 sm:grid-cols-4 gap-2.5">
-          <input
-            type="text"
-            placeholder="Contact Name (e.g. Son / Doctor)"
-            value={contactForm.name}
-            onChange={(e) => setContactForm((p) => ({ ...p, name: e.target.value }))}
-            className="px-3 py-2 text-xs bg-paper border border-hairline rounded text-ink"
-            required
-          />
-          <input
-            type="tel"
-            placeholder="Phone Number (e.g. +91 98765 43210)"
-            value={contactForm.phone}
-            onChange={(e) => setContactForm((p) => ({ ...p, phone: e.target.value }))}
-            className="px-3 py-2 text-xs bg-paper border border-hairline rounded text-ink font-mono"
-            required
-          />
-          <input
-            type="text"
-            placeholder="Relation (Family / Caregiver)"
-            value={contactForm.relation}
-            onChange={(e) => setContactForm((p) => ({ ...p, relation: e.target.value }))}
-            className="px-3 py-2 text-xs bg-paper border border-hairline rounded text-ink"
-          />
-          <button
-            type="submit"
-            className="px-4 py-2 text-xs font-medium bg-ink text-paper rounded hover:bg-ink/85 transition-colors"
-          >
-            Save Emergency Number
-          </button>
-        </form>
+        {/* Nearby Hospital Auto-Call & GPS Location Sharing (Called at 45s) */}
+        <div className="bg-slate-900/75 backdrop-blur-xl border border-white/10 rounded-2xl p-5 space-y-4">
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <span className="text-[10px] font-mono uppercase tracking-widest text-amber-400">
+                Stage 2 · 45 Seconds
+              </span>
+              <h2 className="text-base font-semibold text-white mt-0.5">
+                Nearby Hospital &amp; Live Location
+              </h2>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Auto-detected via free OpenStreetMap GPS; shares live coordinates on escalation.
+              </p>
+            </div>
+            {savedToast && (
+              <span className="text-xs font-mono text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-lg">
+                Saved ✓
+              </span>
+            )}
+          </div>
 
-        {emergencyContacts.length === 0 ? (
-          <div className="text-xs text-ink-muted py-2">
-            No emergency phone numbers saved yet. Add at least one number above.
+          <div className="p-3 rounded-xl bg-slate-950/70 border border-white/10 text-xs space-y-1">
+            <div className="flex justify-between">
+              <span className="text-slate-400">Detected Nearest Hospital:</span>
+              <span className="font-medium text-amber-300">{nearestHospital.name}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-400">Active GPS Coordinates:</span>
+              <a
+                href={`https://maps.google.com/?q=${userLocation.lat},${userLocation.lng}`}
+                target="_blank"
+                rel="noreferrer"
+                className="font-mono text-cyan-400 underline"
+              >
+                {userLocation.lat.toFixed(5)}, {userLocation.lng.toFixed(5)}
+              </a>
+            </div>
           </div>
-        ) : (
-          <div className="divide-y divide-hairline border border-hairline rounded">
-            {emergencyContacts.map((c) => (
-              <div key={c.id} className="flex items-center justify-between px-4 py-2.5 text-xs">
-                <div className="flex items-center gap-3">
-                  <span className="font-semibold text-ink">{c.name}</span>
-                  <span className="px-2 py-0.5 rounded bg-paper border border-hairline text-ink-muted">
-                    {c.relation}
-                  </span>
-                  <a href={`tel:${c.phone}`} className="font-mono text-ink underline">
-                    {c.phone}
-                  </a>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => removeEmergencyContact(c.id)}
-                  className="text-signal-alert hover:underline font-medium"
-                >
-                  Remove
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
+
+          <form onSubmit={handleSaveLocation} className="space-y-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <input
+                type="text"
+                placeholder="Home Street Address / Landmark"
+                value={addressInput}
+                onChange={(e) => setAddressInput(e.target.value)}
+                className="px-3 py-2 text-xs bg-slate-950/90 border border-white/15 rounded-xl text-white placeholder:text-slate-500"
+              />
+              <input
+                type="tel"
+                placeholder="Hospital / Ambulance Phone (e.g. 108)"
+                value={hospitalPhoneInput}
+                onChange={(e) => setHospitalPhoneInput(e.target.value)}
+                className="px-3 py-2 text-xs bg-slate-950/90 border border-white/15 rounded-xl text-white font-mono placeholder:text-slate-500"
+              />
+            </div>
+            <button
+              type="submit"
+              className="w-full py-2 text-xs font-semibold rounded-xl bg-white/10 hover:bg-white/15 text-white border border-white/15 transition-colors"
+            >
+              Update Hospital Number &amp; Home Address
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   )

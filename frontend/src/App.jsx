@@ -18,7 +18,7 @@ import {
 } from './components/Icons'
 
 const NAV_ITEMS = [
-  { to: '/', label: 'Overview', icon: GridIcon, end: true },
+  { to: '/', label: '3D Spatial View', icon: GridIcon, end: true },
   { to: '/live', label: 'Live Telemetry', icon: WaveformIcon },
   { to: '/incidents', label: 'Incidents', icon: AlertIcon, showBadge: true },
   { to: '/analytics', label: 'Analytics', icon: BarChartIcon },
@@ -32,11 +32,9 @@ function AppShell() {
     currentFrame,
     incidents,
     activeAlert,
-    dismissAlert,
     fallCountdown,
+    hospitalCountdown,
     escalationState,
-    emergencyContacts,
-    dispatchedContacts,
     cancelFallEscalation,
     rooms,
     selectedRoomId,
@@ -47,44 +45,39 @@ function AppShell() {
   const pendingCount = incidents.filter((i) => i.status === 'pending').length
 
   const statusConfig = {
-    live: { label: 'Live WS Stream', dot: 'bg-signal-ok', text: 'text-signal-ok' },
-    simulated: { label: 'Local Simulator', dot: 'bg-signal-warn', text: 'text-signal-warn' },
-    paused: { label: 'Stream Paused', dot: 'bg-ink-muted', text: 'text-ink-muted' },
+    live: { label: 'Live ESP32 Stream', dot: 'bg-emerald-400', text: 'text-emerald-400' },
+    simulated: { label: 'Spatial Simulator', dot: 'bg-cyan-400', text: 'text-cyan-400' },
+    paused: { label: 'Stream Paused', dot: 'bg-slate-500', text: 'text-slate-400' },
   }[connectionMode]
 
   const sidebarContent = (
-    <div className="flex flex-col h-full bg-surface border-r border-hairline">
-      {/* Brand Mark */}
-      <div className="px-5 py-5 border-b border-hairline flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded bg-ink text-paper flex items-center justify-center relative">
+    <div className="flex flex-col h-full bg-slate-950 border-r border-white/10 text-slate-200">
+      {/* Brand */}
+      <div className="px-5 py-5 border-b border-white/10 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-cyan-500/15 border border-cyan-400/30 text-cyan-400 flex items-center justify-center relative">
             <RadarMark className="w-4 h-4 relative z-10" />
-            <span className="absolute inset-0 rounded bg-ink animate-radar-ping opacity-30" />
           </div>
           <div>
-            <div className="text-sm font-semibold tracking-tight text-ink leading-none">
+            <div className="text-sm font-semibold tracking-tight text-white leading-none">
               WiFi-Radar
             </div>
-            <div className="text-[11px] font-mono text-ink-muted mt-1">
-              CSI Monitor · v0.1
+            <div className="text-[11px] font-mono text-slate-400 mt-1">
+              Spatial CSI · 3D
             </div>
           </div>
         </div>
         <button
           type="button"
           onClick={() => setMobileOpen(false)}
-          className="lg:hidden p-1 text-ink-secondary hover:text-ink"
-          aria-label="Close navigation"
+          className="lg:hidden p-1 text-slate-400 hover:text-white"
         >
           <CloseIcon className="w-4 h-4" />
         </button>
       </div>
 
-      {/* Navigation Links */}
+      {/* Navigation */}
       <nav className="flex-1 px-3 py-4 space-y-1">
-        <div className="px-2.5 pb-2 text-[10px] font-mono uppercase tracking-widest text-ink-muted">
-          Navigation
-        </div>
         {NAV_ITEMS.map(({ to, label, icon: Icon, end, showBadge }) => (
           <NavLink
             key={to}
@@ -92,10 +85,10 @@ function AppShell() {
             end={end}
             onClick={() => setMobileOpen(false)}
             className={({ isActive }) =>
-              `flex items-center justify-between px-3 py-2 rounded text-sm transition-colors ${
+              `flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs transition-all ${
                 isActive
-                  ? 'bg-subtle text-ink font-semibold'
-                  : 'text-ink-secondary hover:bg-paper hover:text-ink font-normal'
+                  ? 'bg-cyan-500/15 text-cyan-300 font-semibold border border-cyan-400/25'
+                  : 'text-slate-400 hover:bg-white/5 hover:text-white'
               }`
             }
           >
@@ -104,57 +97,51 @@ function AppShell() {
               <span>{label}</span>
             </span>
             {showBadge && pendingCount > 0 && (
-              <span className="font-mono text-[11px] font-semibold px-1.5 py-0.5 rounded bg-signal-alert-bg text-signal-alert tabular-nums">
+              <span className="font-mono text-[11px] font-semibold px-1.5 py-0.5 rounded-md bg-red-500/20 text-red-300">
                 {pendingCount}
               </span>
             )}
           </NavLink>
         ))}
 
-        {/* Active Room Quick Switcher */}
-        <div className="pt-6 px-2.5">
-          <label
-            htmlFor="sidebar-room"
-            className="block text-[10px] font-mono uppercase tracking-widest text-ink-muted mb-2"
-          >
+        {/* Active Zone Switcher */}
+        <div className="pt-6 px-2">
+          <label className="block text-[10px] font-mono uppercase tracking-widest text-slate-500 mb-2">
             Active Zone
           </label>
           <select
-            id="sidebar-room"
             value={selectedRoomId}
             onChange={(e) => setSelectedRoomId(Number(e.target.value))}
-            className="w-full bg-paper border border-hairline rounded px-2.5 py-1.5 text-xs font-medium text-ink focus:outline-none focus:border-ink"
+            className="w-full bg-slate-900 border border-white/10 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-cyan-400"
           >
             {rooms.map((room) => (
               <option key={room.id} value={room.id}>
-                {room.name} ({room.deviceName})
+                {room.name}
               </option>
             ))}
           </select>
         </div>
       </nav>
 
-      {/* Bottom Telemetry Status */}
-      <div className="p-4 border-t border-hairline bg-paper/60">
-        <div className="flex items-center justify-between text-xs mb-2">
-          <span className="flex items-center gap-2 font-medium text-ink">
-            <span className={`w-2 h-2 rounded-full ${statusConfig.dot} ${connectionMode !== 'paused' ? 'animate-signal-dot' : ''}`} />
+      {/* Status Footer */}
+      <div className="p-4 border-t border-white/10 bg-slate-900/50">
+        <div className="flex items-center justify-between text-xs mb-1.5">
+          <span className="flex items-center gap-2 font-medium text-slate-200">
+            <span className={`w-2 h-2 rounded-full ${statusConfig.dot} animate-pulse`} />
             {statusConfig.label}
           </span>
-          <span className="font-mono text-[11px] text-ink-muted tabular-nums">
-            {currentFrame.rssi} dBm
-          </span>
+          <span className="font-mono text-[11px] text-slate-400">{currentFrame.rssi} dBm</span>
         </div>
-        <div className="flex items-center justify-between text-[11px] font-mono text-ink-muted tabular-nums">
+        <div className="flex items-center justify-between text-[11px] font-mono text-slate-500">
           <span>52 subcarriers</span>
-          <span>Frame #{currentFrame.frame}</span>
+          <span>#{currentFrame.frame}</span>
         </div>
       </div>
     </div>
   )
 
   return (
-    <div className="min-h-screen bg-paper text-ink flex">
+    <div className="min-h-screen bg-[#070B14] text-slate-100 flex">
       {/* Desktop Sidebar */}
       <aside className="hidden lg:block w-60 flex-shrink-0 sticky top-0 h-screen">
         {sidebarContent}
@@ -164,115 +151,57 @@ function AppShell() {
       {mobileOpen && (
         <div className="fixed inset-0 z-50 lg:hidden flex">
           <div className="w-64 max-w-[80vw] h-full">{sidebarContent}</div>
-          <div
-            className="flex-1 bg-ink/30"
-            onClick={() => setMobileOpen(false)}
-          />
+          <div className="flex-1 bg-black/60 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
         </div>
       )}
 
-      {/* Main Column */}
       <div className="flex-1 min-w-0 flex flex-col">
         {/* Mobile Top Bar */}
-        <header className="lg:hidden sticky top-0 z-30 bg-surface border-b border-hairline px-4 h-14 flex items-center justify-between">
+        <header className="lg:hidden sticky top-0 z-30 bg-slate-950/90 backdrop-blur-xl border-b border-white/10 px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <button
-              type="button"
-              onClick={() => setMobileOpen(true)}
-              className="p-1.5 -ml-1.5 text-ink"
-              aria-label="Open menu"
-            >
+            <button type="button" onClick={() => setMobileOpen(true)} className="p-1.5 -ml-1.5 text-slate-200">
               <MenuIcon className="w-5 h-5" />
             </button>
-            <span className="font-semibold text-sm tracking-tight">WiFi-Radar</span>
+            <span className="font-semibold text-sm text-white">WiFi-Radar</span>
           </div>
-          <span className={`font-mono text-[11px] font-medium ${statusConfig.text}`}>
-            {statusConfig.label}
-          </span>
+          <span className={`font-mono text-[11px] ${statusConfig.text}`}>{statusConfig.label}</span>
         </header>
 
-        {/* Global Fall Alert Banner with 30s Recovery Countdown & Auto-Call Escalation */}
+        {/* Global Fall Alert Banner — 30s → 45s Escalation Countdown */}
         {activeAlert && (
-          <div className={`border-b px-4 sm:px-8 py-3 flex flex-wrap items-center justify-between gap-3 animate-alert-glow ${
-            escalationState === 'escalated'
-              ? 'bg-signal-alert text-white border-signal-alert'
-              : 'bg-signal-alert-bg text-signal-alert border-signal-alert/30'
-          }`}>
-            <div className="flex flex-col gap-0.5 text-sm">
-              <div className="flex items-center gap-2.5">
-                <AlertIcon className="w-4 h-4 flex-shrink-0" />
-                {escalationState === 'escalated' ? (
-                  <span className="font-semibold">
-                    NO RECOVERY IN 30s — Auto-Calling &amp; Notifying Emergency Contacts!
-                  </span>
-                ) : (
-                  <span className="font-semibold">
-                    Fall Detected — Waiting for person to stand up or walk ({fallCountdown ?? 30}s)
-                  </span>
-                )}
-              </div>
-              <div className="text-xs opacity-90 pl-6">
-                {escalationState === 'escalated' ? (
-                  dispatchedContacts.length > 0 ? (
-                    <span>
-                      Called &amp; Notified:{' '}
-                      {dispatchedContacts.map((c, idx) => (
-                        <span key={c.id || idx} className="font-mono font-semibold mr-2">
-                          {c.name} (<a href={`tel:${c.phone}`} className="underline">{c.phone}</a>)
-                        </span>
-                      ))}
-                    </span>
-                  ) : (
-                    <span>No emergency phone numbers saved yet — add contacts in the Emergency Contacts section.</span>
-                  )
-                ) : (
-                  <span>
-                    {activeAlert.message} · Will auto-call{' '}
-                    <strong>{emergencyContacts.length}</strong> saved emergency contact(s) if not up in {fallCountdown ?? 30}s.
-                  </span>
-                )}
-              </div>
+          <div className="bg-red-600 text-white px-4 sm:px-8 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs">
+            <div className="flex items-center gap-2 font-semibold">
+              <AlertIcon className="w-4 h-4" />
+              <span>
+                {escalationState === 'counting_contact' &&
+                  `FALL DETECTED — Calling Contact in ${fallCountdown}s`}
+                {escalationState === 'counting_hospital' &&
+                  `CONTACT CALLED — Calling Hospital + Sending GPS in ${hospitalCountdown}s`}
+                {escalationState === 'hospital_dispatched' &&
+                  `HOSPITAL & CONTACT CALLED — GPS LOCATION SHARED`}
+              </span>
             </div>
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={cancelFallEscalation}
-                className={`px-3 py-1 text-xs font-medium rounded ${
-                  escalationState === 'escalated'
-                    ? 'bg-white text-signal-alert hover:opacity-90'
-                    : 'bg-signal-ok text-white hover:opacity-90'
-                }`}
+                className="px-3 py-1 rounded-lg bg-white text-red-600 font-bold"
               >
                 Person OK / Cancel
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  dismissAlert()
-                  navigate('/incidents')
-                }}
-                className={`px-3 py-1 text-xs font-medium rounded ${
-                  escalationState === 'escalated'
-                    ? 'bg-black/25 text-white hover:bg-black/35'
-                    : 'bg-signal-alert text-white hover:opacity-90'
-                }`}
+                onClick={() => navigate('/incidents')}
+                className="px-3 py-1 rounded-lg bg-black/30 text-white"
               >
-                Open Triage
-              </button>
-              <button
-                type="button"
-                onClick={dismissAlert}
-                className="p-1 hover:opacity-75"
-                aria-label="Dismiss alert"
-              >
-                <CloseIcon className="w-4 h-4" />
+                Incidents
               </button>
             </div>
           </div>
         )}
 
-        {/* Page Container */}
-        <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-8 py-7">
+        {/* Page Content */}
+        <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-8 py-6">
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/live" element={<LiveMonitoring />} />

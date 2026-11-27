@@ -15,17 +15,15 @@ import {
 const TelemetryContext = createContext(null)
 
 const INITIAL_ROOMS = [
-  { id: 1, name: 'Living Room', location: 'Ground Floor · North', deviceName: 'ESP32-S3-01', mac: 'A4:CF:12:8E:31:04', status: 'online', rssi: -52, breathingBpm: 16.2 },
-  { id: 2, name: 'Primary Bedroom', location: 'First Floor · East', deviceName: 'ESP32-S3-02', mac: 'A4:CF:12:8E:31:09', status: 'online', rssi: -61, breathingBpm: 14.8 },
-  { id: 3, name: 'Hallway & Bath', location: 'First Floor · Center', deviceName: 'ESP32-S3-03', mac: 'A4:CF:12:8E:31:12', status: 'standby', rssi: -69, breathingBpm: null },
+  { id: 1, name: 'Living Room', location: 'Ground Floor · North', deviceName: 'ESP32-WROOM-01', mac: 'A4:CF:12:8E:31:04', status: 'online', rssi: -52, breathingBpm: 16.2 },
+  { id: 2, name: 'Primary Bedroom', location: 'First Floor · East', deviceName: 'ESP32-WROOM-02', mac: 'A4:CF:12:8E:31:09', status: 'online', rssi: -61, breathingBpm: 14.8 },
+  { id: 3, name: 'Hallway & Bath', location: 'First Floor · Center', deviceName: 'ESP32-WROOM-03', mac: 'A4:CF:12:8E:31:12', status: 'standby', rssi: -69, breathingBpm: null },
 ]
 
 const INITIAL_ACTIVITIES = [
   { id: 'act-105', roomId: 1, roomName: 'Living Room', activity: 'walk', confidence: 0.91, timestamp: new Date(Date.now() - 1000 * 60 * 2).toISOString(), status: 'normal' },
   { id: 'act-104', roomId: 1, roomName: 'Living Room', activity: 'sit', confidence: 0.87, timestamp: new Date(Date.now() - 1000 * 60 * 14).toISOString(), status: 'normal' },
   { id: 'act-103', roomId: 2, roomName: 'Primary Bedroom', activity: 'stand', confidence: 0.84, timestamp: new Date(Date.now() - 1000 * 60 * 28).toISOString(), status: 'normal' },
-  { id: 'act-102', roomId: 1, roomName: 'Living Room', activity: 'walk', confidence: 0.89, timestamp: new Date(Date.now() - 1000 * 60 * 47).toISOString(), status: 'normal' },
-  { id: 'act-101', roomId: 2, roomName: 'Primary Bedroom', activity: 'sit', confidence: 0.93, timestamp: new Date(Date.now() - 1000 * 60 * 75).toISOString(), status: 'normal' },
 ]
 
 const INITIAL_INCIDENTS = [
@@ -39,43 +37,40 @@ const INITIAL_INCIDENTS = [
     timestamp: new Date(Date.now() - 1000 * 60 * 42).toISOString(),
     acknowledged_at: new Date(Date.now() - 1000 * 60 * 40).toISOString(),
     resolved_at: null,
-    notes: 'Caregiver called residence; checking in via intercom.',
+    notes: 'Caregiver checked in; resident safe.',
     is_false_alarm: false,
-  },
-  {
-    id: 1002,
-    room_id: 2,
-    room_name: 'Primary Bedroom',
-    incident_type: 'fall',
-    status: 'resolved',
-    confidence: 0.82,
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 7).toISOString(),
-    acknowledged_at: new Date(Date.now() - 1000 * 60 * 60 * 7 + 45000).toISOString(),
-    resolved_at: new Date(Date.now() - 1000 * 60 * 60 * 6.8).toISOString(),
-    notes: 'Slip near bedside mat; resident uninjured and assisted back up.',
-    is_false_alarm: false,
-  },
-  {
-    id: 1001,
-    room_id: 1,
-    room_name: 'Living Room',
-    incident_type: 'fall',
-    status: 'false_alarm',
-    confidence: 0.67,
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 22).toISOString(),
-    acknowledged_at: new Date(Date.now() - 1000 * 60 * 60 * 22 + 30000).toISOString(),
-    resolved_at: new Date(Date.now() - 1000 * 60 * 60 * 21.9).toISOString(),
-    notes: 'Heavy chair moved quickly during cleaning.',
-    is_false_alarm: true,
   },
 ]
 
 const SIM_ACTIVITIES = ['walk', 'stand', 'sit', 'Jump']
 
+async function findNearestHospitalFree(lat, lng) {
+  try {
+    const query = `[out:json][timeout:6];(node["amenity"="hospital"](around:6000,${lat},${lng});way["amenity"="hospital"](around:6000,${lat},${lng}););out center 1;`
+    const res = await fetch('https://overpass-api.de/api/interpreter', {
+      method: 'POST',
+      body: query,
+    })
+    const data = await res.json()
+    const el = data.elements?.[0]
+    if (el) {
+      return {
+        name: el.tags?.name || 'Nearest Emergency Hospital',
+        phone: el.tags?.phone || el.tags?.['contact:phone'] || '108',
+        lat: el.lat ?? el.center?.lat ?? lat,
+        lng: el.lon ?? el.center?.lon ?? lng,
+      }
+    }
+  } catch {
+    // fallback if offline
+  }
+  return { name: 'Emergency Ambulance Service (108)', phone: '108', lat, lng }
+}
+
 export function TelemetryProvider({ children }) {
   const [rooms, setRooms] = useState(INITIAL_ROOMS)
   const [selectedRoomId, setSelectedRoomId] = useState(1)
-  const [connectionMode, setConnectionMode] = useState('simulated') // 'live' | 'simulated' | 'paused'
+  const [connectionMode, setConnectionMode] = useState('simulated')
   const [backendHealthy, setBackendHealthy] = useState(false)
   const [isPaused, setIsPaused] = useState(false)
 
@@ -101,42 +96,71 @@ export function TelemetryProvider({ children }) {
       return []
     }
   })
-  const [fallCountdown, setFallCountdown] = useState(null)
-  const [escalationState, setEscalationState] = useState('idle') // 'idle' | 'counting' | 'recovered' | 'escalated'
-  const [dispatchedContacts, setDispatchedContacts] = useState([])
+
+  // Live GPS + Saved Address + Nearest Hospital State
+  const [userLocation, setUserLocation] = useState({
+    lat: 13.0827,
+    lng: 80.2707,
+    address: localStorage.getItem('wifi_radar_home_address') || 'Home Residence',
+    source: 'default',
+  })
+  const [nearestHospital, setNearestHospital] = useState({
+    name: 'Nearest Emergency Hospital',
+    phone: localStorage.getItem('wifi_radar_hospital_phone') || '108',
+  })
+
+  // Escalation State Machine:
+  // 'idle' | 'counting_contact' (0-30s) | 'counting_hospital' (30-45s) | 'hospital_dispatched' (45s+) | 'recovered'
+  const [elapsedFallSeconds, setElapsedFallSeconds] = useState(0)
+  const [escalationState, setEscalationState] = useState('idle')
+  const [dispatchedLog, setDispatchedLog] = useState([])
 
   const [settings, setSettings] = useState({
     samplingRateHz: 10,
     fallConfidenceThreshold: 0.75,
     subcarrierCount: 52,
-    channels: {
-      sms: true,
-      email: true,
-      whatsapp: false,
-      inApp: true,
-    },
-    apiBaseUrl: 'http://localhost:8080',
-    caregivers: [
-      { id: 1, name: 'Dr. Meera Nair', role: 'Primary Caregiver', contact: 'meera.nair@clinic.example' },
-      { id: 2, name: 'Arjun Raman', role: 'Family Contact', contact: '+91 98400 00142' },
-    ],
+    homeAddress: localStorage.getItem('wifi_radar_home_address') || '',
+    customHospitalPhone: localStorage.getItem('wifi_radar_hospital_phone') || '108',
+    channels: { sms: true, email: true, whatsapp: false, inApp: true },
   })
 
   const simTickRef = useRef({ t: 0, frame: 1, activity: 'stand', countdown: 24 })
   const wsRef = useRef(null)
+  const stage30TriggeredRef = useRef(false)
+  const stage45TriggeredRef = useRef(false)
 
-  // Check backend health once on mount
+  // Acquire Browser GPS + Nearest Free Overpass Hospital on Mount
+  useEffect(() => {
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        async (pos) => {
+          const { latitude, longitude } = pos.coords
+          setUserLocation((prev) => ({
+            ...prev,
+            lat: latitude,
+            lng: longitude,
+            source: 'gps',
+          }))
+          const hosp = await findNearestHospitalFree(latitude, longitude)
+          setNearestHospital((prev) => ({
+            name: hosp.name,
+            phone: localStorage.getItem('wifi_radar_hospital_phone') || hosp.phone,
+          }))
+        },
+        () => {},
+        { enableHighAccuracy: true, timeout: 8000 }
+      )
+    }
+  }, [])
+
   useEffect(() => {
     let mounted = true
     checkBackendHealth().then((ok) => {
       if (mounted) setBackendHealthy(ok)
     })
-    return () => {
-      mounted = false
-    }
+    return () => { mounted = false }
   }, [])
 
-  // Poll real ESP32 hardware + local ML inference status from port 8080 backend
   useEffect(() => {
     if (!backendHealthy) return
     let mounted = true
@@ -162,7 +186,7 @@ export function TelemetryProvider({ children }) {
             livePayload.alert = {
               type: 'fall_detected',
               severity: 'high',
-              message: `ESP32 ML Fall Detected (${Math.round((inf.confidence ?? 0) * 100)}% confidence)`,
+              message: `ESP32 Fall Detected (${Math.round((inf.confidence ?? 0) * 100)}% confidence)`,
               timestamp: livePayload.timestamp,
             }
           }
@@ -174,13 +198,9 @@ export function TelemetryProvider({ children }) {
     }
     pollEsp32()
     const timer = window.setInterval(pollEsp32, 750)
-    return () => {
-      mounted = false
-      window.clearInterval(timer)
-    }
+    return () => { mounted = false; window.clearInterval(timer) }
   }, [backendHealthy, selectedRoomId])
 
-  // Handle incoming frame (from either WS or simulator)
   const ingestFrame = (payload) => {
     setCurrentFrame(payload)
 
@@ -190,21 +210,14 @@ export function TelemetryProvider({ children }) {
         : 0.1
 
     setBreathingHistory((prev) => {
-      // Use breathing_bpm from payload if available, otherwise calculate from activity
-      let nextBpm
-      if (payload.breathing_bpm !== undefined && payload.breathing_bpm !== null) {
-        nextBpm = payload.breathing_bpm
-      } else {
-        nextBpm =
-          payload.activity === 'fall'
-            ? 22.4
-            : payload.activity === 'Jump'
-            ? 20.1
-            : payload.activity === 'walk'
-            ? 17.8
-            : 15.2 + Math.sin(payload.frame * 0.2) * 0.9
-      }
-      const next = [
+      const nextBpm =
+        payload.breathing_bpm !== undefined && payload.breathing_bpm !== null
+          ? payload.breathing_bpm
+          : payload.activity === 'fall' ? 22.4
+          : payload.activity === 'Jump' ? 20.1
+          : payload.activity === 'walk' ? 17.8
+          : 15.2 + Math.sin(payload.frame * 0.2) * 0.9
+      return [
         ...prev.slice(-27),
         {
           t: `F${payload.frame}`,
@@ -212,27 +225,28 @@ export function TelemetryProvider({ children }) {
           variance: Number(ampMean.toFixed(3)),
         },
       ]
-      return next
     })
 
     if (payload.activity === 'fall' && payload.alert) {
       setActiveAlert(payload.alert)
       setEscalationState((prev) => {
         if (prev === 'idle' || prev === 'recovered') {
-          setFallCountdown(30)
-          setDispatchedContacts([])
-          return 'counting'
+          stage30TriggeredRef.current = false
+          stage45TriggeredRef.current = false
+          setElapsedFallSeconds(0)
+          setDispatchedLog([])
+          return 'counting_contact'
         }
         return prev
       })
     }
 
-    // Auto-cancel 30s fall escalation if person stands up or walks within 30s
+    // Auto-cancel escalation if the person stands up or walks before 30s
     const actLower = String(payload.activity || '').toLowerCase()
     if (actLower === 'walk' || actLower === 'stand') {
       setEscalationState((prev) => {
-        if (prev === 'counting') {
-          setFallCountdown(null)
+        if (prev === 'counting_contact') {
+          setElapsedFallSeconds(0)
           setActiveAlert(null)
           return 'recovered'
         }
@@ -241,14 +255,10 @@ export function TelemetryProvider({ children }) {
     }
   }
 
-  // Try WebSocket if backend is healthy, else run smooth local simulator
   useEffect(() => {
     if (isPaused) {
       setConnectionMode('paused')
-      if (wsRef.current) {
-        wsRef.current.close()
-        wsRef.current = null
-      }
+      if (wsRef.current) { wsRef.current.close(); wsRef.current = null }
       return
     }
 
@@ -278,8 +288,7 @@ export function TelemetryProvider({ children }) {
         }
         s.t += 0.25
         s.frame += 1
-        const frame = generateSimulatedCsiFrame(s.activity, s.t, selectedRoomId, s.frame)
-        ingestFrame(frame)
+        ingestFrame(generateSimulatedCsiFrame(s.activity, s.t, selectedRoomId, s.frame))
       }, 280)
     }
 
@@ -291,21 +300,11 @@ export function TelemetryProvider({ children }) {
         ws.onmessage = (event) => {
           try {
             const data = JSON.parse(event.data)
-            if (data.type === 'csi_update') {
-              ingestFrame(data)
-            }
-          } catch {
-            // ignore malformed frame
-          }
+            if (data.type === 'csi_update') ingestFrame(data)
+          } catch {}
         }
-        ws.onerror = () => {
-          ws.close()
-        }
-        ws.onclose = () => {
-          if (!fallbackTimer && !isPaused) {
-            startSimulator()
-          }
-        }
+        ws.onerror = () => ws.close()
+        ws.onclose = () => { if (!fallbackTimer && !isPaused) startSimulator() }
       } catch {
         startSimulator()
       }
@@ -315,64 +314,139 @@ export function TelemetryProvider({ children }) {
 
     return () => {
       if (fallbackTimer) window.clearInterval(fallbackTimer)
-      if (wsRef.current) {
-        wsRef.current.close()
-        wsRef.current = null
-      }
+      if (wsRef.current) { wsRef.current.close(); wsRef.current = null }
     }
   }, [backendHealthy, selectedRoomId, isPaused])
+
+  // Dispatch helper: free Telegram location pin + native tel: call
+  const dispatchFreeTierAlert = async (tier, targetName, targetPhone) => {
+    const roomObj = rooms.find((r) => r.id === selectedRoomId) || rooms[0]
+    const mapsLink = `https://maps.google.com/?q=${userLocation.lat},${userLocation.lng}`
+
+    setDispatchedLog((prev) => [
+      ...prev,
+      {
+        tier,
+        name: targetName,
+        phone: targetPhone,
+        mapsLink,
+        time: new Date().toLocaleTimeString(),
+      },
+    ])
+
+    // 1. Trigger free Telegram Bot notification + native GPS location pin
+    try {
+      await fetch('/api/emergency/telegram', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tier,
+          name: targetName,
+          phone: targetPhone,
+          room_name: roomObj.name,
+          lat: userLocation.lat,
+          lng: userLocation.lng,
+          address: settings.homeAddress || userLocation.address,
+          hospital_name: nearestHospital.name,
+          maps_url: mapsLink,
+          confidence: currentFrame?.confidence ?? 0.88,
+          timestamp: new Date().toISOString(),
+        }),
+      })
+    } catch {
+      // continue even if offline
+    }
+
+    // 2. Also notify local backend escalation log
+    triggerEmergencyEscalationApi({
+      room_name: roomObj.name,
+      confidence: currentFrame?.confidence ?? 0.88,
+      elapsed_seconds: tier === 'hospital' ? 45 : 30,
+      tier,
+      lat: userLocation.lat,
+      lng: userLocation.lng,
+    }).catch(() => {})
+
+    // 3. Initiate free native device phone call (tel:) if a valid phone number exists
+    if (targetPhone && targetPhone.replace(/[^\d+]/g, '').length >= 3) {
+      try {
+        window.location.href = `tel:${targetPhone.replace(/\s+/g, '')}`
+      } catch {
+        // browser blocked automatic tel: navigation
+      }
+    }
+  }
+
+  // Master 0s -> 30s -> 45s Escalation Clock
+  useEffect(() => {
+    const activeStates = ['counting_contact', 'counting_hospital']
+    if (!activeStates.includes(escalationState)) return
+
+    const timer = window.setInterval(() => {
+      setElapsedFallSeconds((prev) => {
+        const next = prev + 1
+
+        // STAGE 1: At 30 seconds -> Auto-Call Saved Emergency Contact + Share Location
+        if (next >= 30 && !stage30TriggeredRef.current) {
+          stage30TriggeredRef.current = true
+          setEscalationState('counting_hospital')
+          const primaryContact = emergencyContacts[0]
+          if (primaryContact) {
+            dispatchFreeTierAlert('contact', primaryContact.name, primaryContact.phone)
+          } else {
+            dispatchFreeTierAlert('contact', 'Emergency Telegram Group', '')
+          }
+        }
+
+        // STAGE 2: At 45 seconds -> Auto-Call Nearby Hospital + Send Live GPS Pin
+        if (next >= 45 && !stage45TriggeredRef.current) {
+          stage45TriggeredRef.current = true
+          setEscalationState('hospital_dispatched')
+          const hospPhone = settings.customHospitalPhone || nearestHospital.phone || '108'
+          dispatchFreeTierAlert('hospital', nearestHospital.name, hospPhone)
+        }
+
+        return next
+      })
+    }, 1000)
+
+    return () => window.clearInterval(timer)
+  }, [escalationState, emergencyContacts, nearestHospital, settings.customHospitalPhone, userLocation])
 
   const triggerSimulatedFall = () => {
     const s = simTickRef.current
     s.activity = 'fall'
-    s.countdown = 18
+    s.countdown = 65 // Keep in fall state long enough to test both 30s & 45s escalation
     s.frame += 1
     const frame = generateSimulatedCsiFrame('fall', s.t + 0.25, selectedRoomId, s.frame)
     ingestFrame(frame)
 
     const roomObj = rooms.find((r) => r.id === selectedRoomId) || rooms[0]
-    const newIncident = {
-      id: Date.now() % 100000,
-      room_id: roomObj.id,
-      room_name: roomObj.name,
-      incident_type: 'fall',
-      status: 'pending',
-      confidence: frame.confidence,
-      timestamp: frame.timestamp,
-      acknowledged_at: null,
-      resolved_at: null,
-      notes: '',
-      is_false_alarm: false,
-    }
-
-    setIncidents((prev) => [newIncident, ...prev])
-    setActivities((prev) => [
+    setIncidents((prev) => [
       {
-        id: `act-fall-${Date.now()}`,
-        roomId: roomObj.id,
-        roomName: roomObj.name,
-        activity: 'fall',
+        id: Date.now() % 100000,
+        room_id: roomObj.id,
+        room_name: roomObj.name,
+        incident_type: 'fall',
+        status: 'pending',
         confidence: frame.confidence,
         timestamp: frame.timestamp,
-        status: 'alert',
+        acknowledged_at: null,
+        resolved_at: null,
+        notes: '',
+        is_false_alarm: false,
       },
-      ...prev.slice(0, 29),
+      ...prev,
     ])
   }
 
   const acknowledgeIncident = async (id) => {
     const now = new Date().toISOString()
     setIncidents((prev) =>
-      prev.map((inc) =>
-        inc.id === id ? { ...inc, status: 'acknowledged', acknowledged_at: now } : inc
-      )
+      prev.map((inc) => (inc.id === id ? { ...inc, status: 'acknowledged', acknowledged_at: now } : inc))
     )
     if (backendHealthy) {
-      try {
-        await acknowledgeIncidentApi(id)
-      } catch {
-        // local optimistic state remains
-      }
+      try { await acknowledgeIncidentApi(id) } catch {}
     }
   }
 
@@ -381,26 +455,15 @@ export function TelemetryProvider({ children }) {
     setIncidents((prev) =>
       prev.map((inc) =>
         inc.id === id
-          ? {
-              ...inc,
-              status: isFalseAlarm ? 'false_alarm' : 'resolved',
-              resolved_at: now,
-              notes: notes || inc.notes,
-              is_false_alarm: isFalseAlarm,
-            }
+          ? { ...inc, status: isFalseAlarm ? 'false_alarm' : 'resolved', resolved_at: now, notes, is_false_alarm: isFalseAlarm }
           : inc
       )
     )
     if (backendHealthy) {
-      try {
-        await resolveIncidentApi(id, { notes, is_false_alarm: isFalseAlarm })
-      } catch {
-        // local optimistic state remains
-      }
+      try { await resolveIncidentApi(id, { notes, is_false_alarm: isFalseAlarm }) } catch {}
     }
   }
 
-  // Load saved emergency contacts from backend
   useEffect(() => {
     if (!backendHealthy) return
     fetchEmergencyContacts()
@@ -411,72 +474,6 @@ export function TelemetryProvider({ children }) {
       .catch(() => {})
   }, [backendHealthy])
 
-  // 30-second countdown timer when fall is active; auto-call & notify at 0s
-  useEffect(() => {
-    if (escalationState !== 'counting' || fallCountdown === null) return
-
-    if (fallCountdown <= 0) {
-      setEscalationState('escalated')
-      const roomObj = rooms.find((r) => r.id === selectedRoomId) || rooms[0]
-      setDispatchedContacts(emergencyContacts)
-      
-      // Call backend API
-      triggerEmergencyEscalationApi({
-        room_name: roomObj.name,
-        confidence: currentFrame?.confidence ?? 0.85,
-        elapsed_seconds: 30,
-      }).catch(() => {})
-      
-      // Make REAL calls/notifications to all emergency contacts
-      emergencyContacts.forEach(async (contact) => {
-        try {
-          const apiUrl = DEFAULT_API_BASE || ''
-          
-          // Determine which endpoint to use based on phone format
-          let endpoint = '/api/emergency/telegram' // Default to Telegram
-          
-          if (contact.phone.includes('telegram:')) {
-            endpoint = '/api/emergency/telegram'
-          } else if (contact.phone.match(/^\+?\d{10,15}$/)) {
-            // Real phone number - try Twilio
-            endpoint = '/api/emergency/twilio-call'
-          }
-          
-          const response = await fetch(`${apiUrl}${endpoint}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              phone: contact.phone,
-              name: contact.name,
-              relation: contact.relation,
-              room_name: roomObj.name,
-              timestamp: new Date().toISOString(),
-              confidence: currentFrame?.confidence ?? 0.85
-            })
-          })
-          
-          const result = await response.json()
-          console.log(`📞 Emergency notification to ${contact.name}:`, result)
-          
-          if (result.success) {
-            console.log(`✅ Successfully notified ${contact.name} via ${result.platform}`)
-          } else {
-            console.error(`❌ Failed to notify ${contact.name}:`, result.error)
-          }
-        } catch (error) {
-          console.error(`❌ Error notifying ${contact.name}:`, error)
-        }
-      })
-      
-      return
-    }
-
-    const timer = window.setTimeout(() => {
-      setFallCountdown((c) => (c !== null ? c - 1 : null))
-    }, 1000)
-    return () => window.clearTimeout(timer)
-  }, [escalationState, fallCountdown, emergencyContacts, rooms, selectedRoomId, currentFrame?.confidence])
-
   const addEmergencyContact = async (contact) => {
     const fallbackList = [...emergencyContacts, { id: Date.now(), ...contact }]
     setEmergencyContacts(fallbackList)
@@ -486,9 +483,7 @@ export function TelemetryProvider({ children }) {
         const updated = await addEmergencyContactApi(contact)
         setEmergencyContacts(updated)
         localStorage.setItem('wifi_radar_emergency_contacts', JSON.stringify(updated))
-      } catch {
-        // keep local list
-      }
+      } catch {}
     }
   }
 
@@ -501,17 +496,26 @@ export function TelemetryProvider({ children }) {
         const updated = await deleteEmergencyContactApi(id)
         setEmergencyContacts(updated)
         localStorage.setItem('wifi_radar_emergency_contacts', JSON.stringify(updated))
-      } catch {
-        // keep local list
-      }
+      } catch {}
     }
   }
 
+  const updateLocationSettings = (address, hospitalPhone) => {
+    localStorage.setItem('wifi_radar_home_address', address)
+    localStorage.setItem('wifi_radar_hospital_phone', hospitalPhone)
+    setSettings((prev) => ({ ...prev, homeAddress: address, customHospitalPhone: hospitalPhone }))
+    setUserLocation((prev) => ({ ...prev, address: address || prev.address }))
+    setNearestHospital((prev) => ({ ...prev, phone: hospitalPhone || prev.phone }))
+  }
+
   const cancelFallEscalation = () => {
+    stage30TriggeredRef.current = false
+    stage45TriggeredRef.current = false
+    simTickRef.current.activity = 'stand'
     setEscalationState('idle')
-    setFallCountdown(null)
+    setElapsedFallSeconds(0)
     setActiveAlert(null)
-    setDispatchedContacts([])
+    setDispatchedLog([])
   }
 
   const value = useMemo(
@@ -534,9 +538,14 @@ export function TelemetryProvider({ children }) {
       emergencyContacts,
       addEmergencyContact,
       removeEmergencyContact,
-      fallCountdown,
+      userLocation,
+      nearestHospital,
+      updateLocationSettings,
+      elapsedFallSeconds,
+      fallCountdown: Math.max(0, 30 - elapsedFallSeconds),
+      hospitalCountdown: Math.max(0, 45 - elapsedFallSeconds),
       escalationState,
-      dispatchedContacts,
+      dispatchedLog,
       cancelFallEscalation,
       dismissAlert: cancelFallEscalation,
       triggerSimulatedFall,
@@ -546,22 +555,10 @@ export function TelemetryProvider({ children }) {
       setSettings,
     }),
     [
-      rooms,
-      selectedRoomId,
-      connectionMode,
-      backendHealthy,
-      isPaused,
-      currentFrame,
-      breathingHistory,
-      activities,
-      incidents,
-      activeAlert,
-      esp32Status,
-      emergencyContacts,
-      fallCountdown,
-      escalationState,
-      dispatchedContacts,
-      settings,
+      rooms, selectedRoomId, connectionMode, backendHealthy, isPaused,
+      currentFrame, breathingHistory, activities, incidents, activeAlert,
+      esp32Status, emergencyContacts, userLocation, nearestHospital,
+      elapsedFallSeconds, escalationState, dispatchedLog, settings,
     ]
   )
 
