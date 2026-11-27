@@ -38,50 +38,62 @@ const HOURLY_DATA = {
 }
 
 const RESPIRATORY_TREND = [
-  { label: '00:00', bpm: 13.8, snr: 24 },
-  { label: '04:00', bpm: 13.4, snr: 26 },
-  { label: '08:00', bpm: 16.2, snr: 22 },
-  { label: '12:00', bpm: 17.1, snr: 21 },
-  { label: '16:00', bpm: 16.4, snr: 23 },
-  { label: '20:00', bpm: 14.9, snr: 25 },
+  { label: '00:00', bpm: 13.8 },
+  { label: '04:00', bpm: 13.4 },
+  { label: '08:00', bpm: 16.2 },
+  { label: '12:00', bpm: 17.1 },
+  { label: '16:00', bpm: 16.4 },
+  { label: '20:00', bpm: 14.9 },
 ]
 
-// Grounded directly in ai/saved_models/baseline_rf_metrics.json
 const MODEL_CLASS_DISTRIBUTION = [
-  { label: 'fall', count: 5150, pct: 51.5 },
-  { label: 'Jump', count: 1998, pct: 20.0 },
-  { label: 'sit', count: 960, pct: 9.6 },
-  { label: 'stand', count: 947, pct: 9.5 },
-  { label: 'walk', count: 945, pct: 9.4 },
+  { label: 'fall',  count: 5150, pct: 51.5, color: '#EF4444' },
+  { label: 'Jump',  count: 1998, pct: 20.0, color: '#F59E0B' },
+  { label: 'sit',   count: 960,  pct: 9.6,  color: '#38BDF8' },
+  { label: 'stand', count: 947,  pct: 9.5,  color: '#06B6D4' },
+  { label: 'walk',  count: 945,  pct: 9.4,  color: '#10B981' },
 ]
 
 function Analytics() {
   const [range, setRange] = useState('24H')
 
+  const tooltipStyle = {
+    backgroundColor: 'rgba(15,23,42,0.95)',
+    border: '1px solid rgba(6,182,212,0.25)',
+    borderRadius: '8px',
+    color: '#F8FAFC',
+    fontFamily: "'JetBrains Mono', monospace",
+    fontSize: '11px',
+  }
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-up">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-5 border-b border-hairline">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900/75 backdrop-blur-xl border border-white/10 rounded-2xl px-6 py-4 shadow-glass">
         <div>
-          <p className="text-[11px] font-mono uppercase tracking-widest text-ink-muted">
-            Longitudinal Telemetry
-          </p>
-          <h1 className="text-2xl font-semibold tracking-tight text-ink mt-1">
-            Activity & Model Analytics
+          <div className="flex items-center gap-2 mb-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse" />
+            <span className="text-[11px] font-mono uppercase tracking-widest text-sky-400">
+              Longitudinal Telemetry
+            </span>
+          </div>
+          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-white">
+            Activity &amp; Model Analytics
           </h1>
-          <p className="text-sm text-ink-secondary mt-1">
+          <p className="text-sm text-slate-400 mt-0.5">
             Mobility patterns, respiratory stability, and Random Forest classifier diagnostics.
           </p>
         </div>
-
-        <div className="inline-flex bg-surface border border-hairline rounded p-0.5 self-start sm:self-auto">
+        <div className="inline-flex bg-slate-950/70 border border-white/10 rounded-xl p-1 self-start sm:self-auto">
           {['24H', '7D', '30D'].map((r) => (
             <button
               key={r}
               type="button"
               onClick={() => setRange(r)}
-              className={`px-3 py-1 text-xs font-mono rounded transition-colors ${
-                range === r ? 'bg-ink text-paper font-medium' : 'text-ink-secondary hover:text-ink'
+              className={`px-3.5 py-1.5 text-xs font-mono rounded-lg transition-all ${
+                range === r
+                  ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-400/30 font-semibold'
+                  : 'text-slate-400 hover:text-white'
               }`}
             >
               {r}
@@ -93,118 +105,76 @@ function Analytics() {
       {/* Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Activity Breakdown */}
-        <div className="bg-surface border border-hairline rounded-md p-5">
+        <div className="bg-slate-900/75 backdrop-blur-xl border border-white/10 rounded-2xl p-5 shadow-glass">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h2 className="text-sm font-semibold text-ink">Activity Transitions ({range})</h2>
-              <p className="text-xs text-ink-secondary">Walk, sit, and stand event volume</p>
+              <h2 className="text-sm font-semibold text-white">Activity Transitions ({range})</h2>
+              <p className="text-xs text-slate-400">Walk, sit, and stand event volume</p>
             </div>
-            <div className="flex items-center gap-3 text-[11px] font-mono text-ink-muted">
-              <span className="flex items-center gap-1">
-                <span className="w-2 h-2 bg-ink inline-block rounded-sm" /> Walk
-              </span>
-              <span className="flex items-center gap-1">
-                <span className="w-2 h-2 bg-[#85827A] inline-block rounded-sm" /> Sit
-              </span>
-              <span className="flex items-center gap-1">
-                <span className="w-2 h-2 bg-[#C7C3B8] inline-block rounded-sm" /> Stand
-              </span>
+            <div className="flex items-center gap-3 text-[11px] font-mono text-slate-400">
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 bg-cyan-400 rounded-sm" /> Walk</span>
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 bg-sky-400 rounded-sm" /> Sit</span>
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 bg-slate-500 rounded-sm" /> Stand</span>
             </div>
           </div>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={HOURLY_DATA[range]} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
-                <CartesianGrid stroke="#ECE9E1" strokeDasharray="3 3" vertical={false} />
-                <XAxis
-                  dataKey="label"
-                  tick={{ fontSize: 11, fill: '#85827A', fontFamily: 'IBM Plex Mono' }}
-                  tickLine={false}
-                  axisLine={{ stroke: '#E2DFD7' }}
-                />
-                <YAxis
-                  tick={{ fontSize: 11, fill: '#85827A', fontFamily: 'IBM Plex Mono' }}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: '#FFFFFF',
-                    border: '1px solid #E2DFD7',
-                    borderRadius: '4px',
-                    fontSize: '12px',
-                    fontFamily: 'IBM Plex Mono',
-                  }}
-                />
-                <Bar dataKey="walk" name="Walk" fill="#181816" radius={[2, 2, 0, 0]} />
-                <Bar dataKey="sit" name="Sit" fill="#85827A" radius={[2, 2, 0, 0]} />
-                <Bar dataKey="stand" name="Stand" fill="#C7C3B8" radius={[2, 2, 0, 0]} />
+                <CartesianGrid stroke="rgba(30,41,59,0.6)" strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#475569', fontFamily: 'JetBrains Mono' }} tickLine={false} axisLine={false} />
+                <YAxis tick={{ fontSize: 11, fill: '#475569', fontFamily: 'JetBrains Mono' }} tickLine={false} axisLine={false} />
+                <Tooltip contentStyle={tooltipStyle} />
+                <Bar dataKey="walk" name="Walk" fill="#06B6D4" radius={[3, 3, 0, 0]} />
+                <Bar dataKey="sit"  name="Sit"  fill="#38BDF8" radius={[3, 3, 0, 0]} />
+                <Bar dataKey="stand" name="Stand" fill="#475569" radius={[3, 3, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
 
         {/* Respiratory Baseline */}
-        <div className="bg-surface border border-hairline rounded-md p-5">
+        <div className="bg-slate-900/75 backdrop-blur-xl border border-white/10 rounded-2xl p-5 shadow-glass">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h2 className="text-sm font-semibold text-ink">Circadian Respiration Curve</h2>
-              <p className="text-xs text-ink-secondary">Mean breaths per minute (24h profile)</p>
+              <h2 className="text-sm font-semibold text-white">Circadian Respiration Curve</h2>
+              <p className="text-xs text-slate-400">Mean breaths per minute (24h profile)</p>
             </div>
-            <span className="text-[11px] font-mono text-signal-ok bg-signal-ok-bg px-2 py-0.5 rounded">
+            <span className="text-[11px] font-mono text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-lg">
               Avg 15.3 BPM
             </span>
           </div>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={RESPIRATORY_TREND} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
-                <CartesianGrid stroke="#ECE9E1" strokeDasharray="3 3" vertical={false} />
-                <XAxis
-                  dataKey="label"
-                  tick={{ fontSize: 11, fill: '#85827A', fontFamily: 'IBM Plex Mono' }}
-                  tickLine={false}
-                  axisLine={{ stroke: '#E2DFD7' }}
-                />
-                <YAxis
-                  domain={[10, 22]}
-                  tick={{ fontSize: 11, fill: '#85827A', fontFamily: 'IBM Plex Mono' }}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: '#FFFFFF',
-                    border: '1px solid #E2DFD7',
-                    borderRadius: '4px',
-                    fontSize: '12px',
-                    fontFamily: 'IBM Plex Mono',
-                  }}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="bpm"
-                  name="Breathing (BPM)"
-                  stroke="#1E6B47"
-                  strokeWidth={2}
-                  fill="#ECF6F0"
-                />
+                <defs>
+                  <linearGradient id="respGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%"  stopColor="#10B981" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#10B981" stopOpacity={0.02} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid stroke="rgba(30,41,59,0.6)" strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#475569', fontFamily: 'JetBrains Mono' }} tickLine={false} axisLine={false} />
+                <YAxis domain={[10, 22]} tick={{ fontSize: 11, fill: '#475569', fontFamily: 'JetBrains Mono' }} tickLine={false} axisLine={false} />
+                <Tooltip contentStyle={tooltipStyle} />
+                <Area type="monotone" dataKey="bpm" name="Breathing (BPM)" stroke="#10B981" strokeWidth={2} fill="url(#respGrad)" />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         </div>
       </div>
 
-      {/* Baseline Classifier Diagnostics (from ai/saved_models/baseline_rf_metrics.json) */}
-      <div className="bg-surface border border-hairline rounded-md p-5">
-        <div className="flex flex-wrap items-start justify-between gap-3 pb-4 border-b border-hairline">
+      {/* Classifier Diagnostics */}
+      <div className="bg-slate-900/75 backdrop-blur-xl border border-white/10 rounded-2xl p-5 shadow-glass">
+        <div className="flex flex-wrap items-start justify-between gap-3 pb-4 border-b border-white/10">
           <div>
-            <h2 className="text-sm font-semibold text-ink">
+            <h2 className="text-sm font-semibold text-white">
               Baseline Classifier Diagnostics (Random Forest)
             </h2>
-            <p className="text-xs text-ink-secondary mt-0.5">
-              Metrics from <code className="text-[11px]">ai/saved_models/baseline_rf_metrics.json</code> · 38 CSI features · 10,000 samples
+            <p className="text-xs text-slate-400 mt-0.5">
+              Metrics from <code className="text-[11px] text-cyan-400">ai/saved_models/baseline_rf_metrics.json</code> · 38 CSI features · 10,000 samples
             </p>
           </div>
-          <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-signal-warn-bg text-signal-warn">
+          <span className="text-[11px] font-mono px-2.5 py-1 rounded-lg bg-amber-500/15 border border-amber-500/25 text-amber-300">
             Overfitting Detected (Δ 42.4%)
           </span>
         </div>
@@ -212,33 +182,33 @@ function Analytics() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 pt-4">
           <div className="grid grid-cols-3 gap-3 lg:col-span-1">
             {[
-              { label: 'Train Acc', val: '97.8%' },
-              { label: 'Val Acc', val: '56.3%' },
-              { label: 'Test Acc', val: '55.4%' },
+              { label: 'Train Acc', val: '97.8%', color: 'text-cyan-300' },
+              { label: 'Val Acc',   val: '56.3%', color: 'text-amber-300' },
+              { label: 'Test Acc',  val: '55.4%', color: 'text-amber-300' },
             ].map((m) => (
-              <div key={m.label} className="bg-paper border border-hairline rounded p-3">
-                <div className="text-[10px] font-mono uppercase text-ink-muted">{m.label}</div>
-                <div className="mt-1 text-lg font-semibold font-mono tabular-nums text-ink">
+              <div key={m.label} className="bg-slate-950/70 border border-white/10 rounded-xl p-3">
+                <div className="text-[10px] font-mono uppercase text-slate-500">{m.label}</div>
+                <div className={`mt-1.5 text-lg font-semibold font-mono tabular-nums ${m.color}`}>
                   {m.val}
                 </div>
               </div>
             ))}
           </div>
 
-          <div className="lg:col-span-2 space-y-2.5">
-            <div className="text-[11px] font-mono uppercase tracking-wider text-ink-muted">
+          <div className="lg:col-span-2 space-y-3">
+            <div className="text-[11px] font-mono uppercase tracking-wider text-slate-500">
               Training Class Balance (5 Classes)
             </div>
             {MODEL_CLASS_DISTRIBUTION.map((cls) => (
               <div key={cls.label} className="flex items-center gap-3 text-xs font-mono">
-                <span className="w-14 text-ink capitalize">{cls.label}</span>
-                <div className="flex-1 h-2 bg-subtle rounded overflow-hidden">
+                <span className="w-14 text-slate-300 capitalize">{cls.label}</span>
+                <div className="flex-1 h-2 bg-slate-800/60 rounded-full overflow-hidden">
                   <div
-                    className={`h-full ${cls.label === 'fall' ? 'bg-ink' : 'bg-ink-muted'}`}
-                    style={{ width: `${cls.pct}%` }}
+                    className="h-full rounded-full transition-all"
+                    style={{ width: `${cls.pct}%`, backgroundColor: cls.color, opacity: 0.8 }}
                   />
                 </div>
-                <span className="w-24 text-right text-ink-secondary tabular-nums">
+                <span className="w-28 text-right text-slate-500 tabular-nums">
                   {cls.count.toLocaleString()} ({cls.pct}%)
                 </span>
               </div>
