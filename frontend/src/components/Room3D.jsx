@@ -50,31 +50,31 @@ function RadarFloorRings({ color = '#06B6D4', count = 5 }) {
 function SpatialRoom() {
   return (
     <group>
-      {/* Deep obsidian floor with subtle metalness */}
+      {/* Brighter navy floor */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
         <planeGeometry args={[12, 12]} />
-        <meshStandardMaterial color="#080E1A" roughness={0.25} metalness={0.55} />
+        <meshStandardMaterial color="#111E35" roughness={0.3} metalness={0.45} />
       </mesh>
 
       {/* Fine grid overlay */}
-      <gridHelper args={[12, 24, '#1E293B', '#111827']} position={[0, 0.004, 0]} />
+      <gridHelper args={[12, 24, '#243352', '#1A2744']} position={[0, 0.004, 0]} />
 
       {/* Soft area rug */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0.1, 0.009, 0.3]}>
         <planeGeometry args={[5.8, 4.6]} />
-        <meshStandardMaterial color="#0D1A2E" roughness={0.9} />
+        <meshStandardMaterial color="#162440" roughness={0.9} />
       </mesh>
 
       {/* Back wall */}
       <mesh position={[0, 2.2, -5.5]}>
         <boxGeometry args={[12, 4.4, 0.12]} />
-        <meshStandardMaterial color="#0A1120" roughness={0.65} metalness={0.15} />
+        <meshStandardMaterial color="#0E1C32" roughness={0.6} metalness={0.1} />
       </mesh>
 
       {/* Left wall */}
       <mesh position={[-5.5, 2.2, 0]} rotation={[0, Math.PI / 2, 0]}>
         <boxGeometry args={[12, 4.4, 0.12]} />
-        <meshStandardMaterial color="#07101E" roughness={0.65} metalness={0.15} />
+        <meshStandardMaterial color="#0C1A2E" roughness={0.6} metalness={0.1} />
       </mesh>
 
       {/* Cyan LED cove — back wall base */}
@@ -104,15 +104,15 @@ function SpatialRoom() {
       <group position={[0, 0, -2.9]}>
         <mesh position={[0, 0.2, 0]}>
           <boxGeometry args={[3.0, 0.38, 1.0]} />
-          <meshStandardMaterial color="#162032" roughness={0.7} metalness={0.1} />
+          <meshStandardMaterial color="#1E3A5F" roughness={0.65} metalness={0.1} />
         </mesh>
         <mesh position={[0, 0.44, 0.04]}>
           <boxGeometry args={[3.0, 0.1, 0.9]} />
-          <meshStandardMaterial color="#1E2D42" roughness={0.75} />
+          <meshStandardMaterial color="#274575" roughness={0.7} />
         </mesh>
         <mesh position={[0, 0.72, -0.38]}>
           <boxGeometry args={[3.0, 0.6, 0.2]} />
-          <meshStandardMaterial color="#162032" roughness={0.7} />
+          <meshStandardMaterial color="#1E3A5F" roughness={0.65} />
         </mesh>
       </group>
 
@@ -360,7 +360,7 @@ function Room3DVisualization({
 
   return (
     <div
-      className={`relative w-full bg-[#060C17] overflow-hidden`}
+      className={`relative w-full bg-[#0A1628] overflow-hidden`}
       style={{ height: fullScreen ? '100%' : '420px' }}
     >
       <Canvas
@@ -368,18 +368,20 @@ function Room3DVisualization({
         shadows
         gl={{ antialias: true, alpha: false }}
       >
-        <color attach="background" args={['#060C17']} />
-        <fog attach="fog" args={['#060C17', 12, 26]} />
+        <color attach="background" args={['#0A1628']} />
+        <fog attach="fog" args={['#0A1628', 13, 25]} />
 
-        {/* Lighting */}
-        <ambientLight intensity={0.45} />
-        <directionalLight position={[7, 14, 5]} intensity={0.7} color="#D0E8FF" castShadow />
+        {/* Lighting — boosted for visibility */}
+        <ambientLight intensity={0.90} />
+        <directionalLight position={[7, 14, 5]} intensity={1.2} color="#D8EEFF" castShadow />
         {/* Warm accent from lamp corner */}
-        <pointLight position={[3.5, 2.0, -3.0]} intensity={1.4} color="#FDE68A" distance={8} />
+        <pointLight position={[3.5, 2.0, -3.0]} intensity={2.2} color="#FDE68A" distance={10} />
         {/* Coloured fill from sensor area */}
-        <pointLight position={[-4.4, 2.0, -4.4]} intensity={1.6} color={accent} distance={12} />
+        <pointLight position={[-4.4, 2.0, -4.4]} intensity={2.4} color={accent} distance={14} />
         {/* Subject fill light */}
-        <pointLight position={[0.1, 2.5, 0.5]} intensity={1.0} color={isFall ? '#EF4444' : '#38BDF8'} distance={7} />
+        <pointLight position={[0.1, 2.5, 0.5]} intensity={1.6} color={isFall ? '#F87171' : '#67E8F9'} distance={8} />
+        {/* General room fill */}
+        <pointLight position={[2, 3.5, 2]} intensity={1.0} color="#C7D9FF" distance={12} />
 
         <SpatialRoom />
         <RadarFloorRings color={accent} count={5} />

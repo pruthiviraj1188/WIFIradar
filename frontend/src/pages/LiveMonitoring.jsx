@@ -53,7 +53,7 @@ function LiveMonitoring() {
   return (
     <div className="space-y-6 animate-fade-up">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900/75 backdrop-blur-xl border border-white/10 rounded-2xl px-6 py-4 shadow-glass">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-[#1E2E4A]/85 backdrop-blur-xl border border-white/10 rounded-2xl px-6 py-4 shadow-glass">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
@@ -72,7 +72,7 @@ function LiveMonitoring() {
           <select
             value={selectedRoomId}
             onChange={(e) => setSelectedRoomId(Number(e.target.value))}
-            className="bg-slate-950/90 border border-white/15 rounded-xl px-3.5 py-2 text-xs font-medium text-slate-200 focus:outline-none focus:border-cyan-400"
+            className="bg-[#1A2744]/90 border border-white/15 rounded-xl px-3.5 py-2 text-xs font-medium text-slate-200 focus:outline-none focus:border-cyan-400"
           >
             {rooms.map((r) => (
               <option key={r.id} value={r.id}>{r.name} · {r.deviceName}</option>
@@ -81,7 +81,7 @@ function LiveMonitoring() {
           <button
             type="button"
             onClick={() => setIsPaused(!isPaused)}
-            className="px-4 py-2 text-xs font-semibold rounded-xl bg-slate-800/80 border border-white/10 text-slate-300 hover:bg-white/10 hover:text-white transition-all"
+            className="px-4 py-2 text-xs font-semibold rounded-xl bg-[#1E2E4A]/80 border border-white/10 text-slate-300 hover:bg-white/10 hover:text-white transition-all"
           >
             {isPaused ? '▶ Resume' : '⏸ Pause'}
           </button>
@@ -105,8 +105,8 @@ function LiveMonitoring() {
           { label: 'Peak |CSI|', value: peakAmplitude },
           { label: 'Frame Index', value: `#${currentFrame.frame}` },
         ].map((metric) => (
-          <div key={metric.label} className="bg-slate-900/75 backdrop-blur-xl border border-white/10 rounded-xl px-3.5 py-3 card-elevated">
-            <div className="text-[10px] font-mono uppercase tracking-wider text-slate-500">
+          <div key={metric.label} className="bg-[#1E2E4A]/85 backdrop-blur-xl border border-white/10 rounded-xl px-3.5 py-3 card-elevated">
+            <div className="text-[10px] font-mono uppercase tracking-wider text-slate-400">
               {metric.label}
             </div>
             <div className={`mt-1.5 text-base font-semibold font-mono tabular-nums ${metric.accent || 'text-slate-100'}`}>
@@ -118,7 +118,7 @@ function LiveMonitoring() {
 
       {/* 3D Room + CSI Spectrum */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
-        <div className="bg-slate-900/75 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden shadow-glass">
+        <div className="bg-[#1E2E4A]/85 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden shadow-glass">
           <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/10">
             <div>
               <h2 className="text-sm font-semibold text-white">3D Spatial Inference</h2>
@@ -141,13 +141,13 @@ function LiveMonitoring() {
           />
         </div>
 
-        <div className="bg-slate-900/75 backdrop-blur-xl border border-white/10 rounded-2xl p-5 flex flex-col shadow-glass">
+        <div className="bg-[#1E2E4A]/85 backdrop-blur-xl border border-white/10 rounded-2xl p-5 flex flex-col shadow-glass">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h2 className="text-sm font-semibold text-white">52-Subcarrier Amplitude Spectrum</h2>
               <p className="text-xs text-slate-400">Instantaneous CSI magnitude · 20 MHz OFDM</p>
             </div>
-            <span className="text-[11px] font-mono text-slate-500 tabular-nums">10 Hz nominal</span>
+            <span className="text-[11px] font-mono text-slate-400 tabular-nums">10 Hz nominal</span>
           </div>
           <div className="flex-1 min-h-[320px]">
             <ResponsiveContainer width="100%" height="100%">
@@ -170,7 +170,7 @@ function LiveMonitoring() {
       </div>
 
       {/* Respiratory Rate Chart */}
-      <div className="bg-slate-900/75 backdrop-blur-xl border border-white/10 rounded-2xl p-5 shadow-glass">
+      <div className="bg-[#1E2E4A]/85 backdrop-blur-xl border border-white/10 rounded-2xl p-5 shadow-glass">
         <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
           <div>
             <h2 className="text-sm font-semibold text-white">Respiratory Rate &amp; Motion Variance</h2>

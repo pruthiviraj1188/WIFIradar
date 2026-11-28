@@ -48,12 +48,12 @@ function Settings() {
     flashNotice(ok ? 'Backend health check passed.' : 'Backend unreachable; running local simulator.')
   }
 
-  const inputCls = 'bg-slate-950/90 border border-white/10 rounded-xl px-3 py-2 text-xs text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-cyan-400 w-full'
+  const inputCls = 'bg-[#1A2744]/90 border border-white/10 rounded-xl px-3 py-2 text-xs text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-cyan-400 w-full'
 
   return (
     <div className="space-y-6 max-w-4xl animate-fade-up">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-900/75 backdrop-blur-xl border border-white/10 rounded-2xl px-6 py-4 shadow-glass">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#1E2E4A]/85 backdrop-blur-xl border border-white/10 rounded-2xl px-6 py-4 shadow-glass">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-pulse" />
@@ -76,7 +76,7 @@ function Settings() {
       </div>
 
       {/* Section 1: ESP32 Hardware */}
-      <section className="bg-slate-900/75 backdrop-blur-xl border border-white/10 rounded-2xl p-5 space-y-4 shadow-glass">
+      <section className="bg-[#1E2E4A]/85 backdrop-blur-xl border border-white/10 rounded-2xl p-5 space-y-4 shadow-glass">
         <div>
           <h2 className="text-sm font-semibold text-white">ESP32 Sensor Nodes &amp; CSI Pipeline</h2>
           <p className="text-xs text-slate-400 mt-0.5">Registered hardware units and sampling thresholds</p>
@@ -85,7 +85,7 @@ function Settings() {
         <div className="overflow-x-auto rounded-xl border border-white/10">
           <table className="w-full text-left border-collapse text-xs">
             <thead>
-              <tr className="bg-slate-950/60 border-b border-white/10 font-mono uppercase text-[10px] text-slate-500">
+              <tr className="bg-[#1A2744]/70 border-b border-white/10 font-mono uppercase text-[10px] text-slate-400">
                 <th className="py-2.5 px-4">Device</th>
                 <th className="py-2.5 px-4">Zone</th>
                 <th className="py-2.5 px-4">MAC Address</th>
@@ -97,12 +97,12 @@ function Settings() {
                 <tr key={r.id} className="hover:bg-white/5 transition-colors">
                   <td className="py-2.5 px-4 font-mono font-medium text-slate-200">{r.deviceName}</td>
                   <td className="py-2.5 px-4 text-slate-400">{r.name}</td>
-                  <td className="py-2.5 px-4 font-mono text-slate-500">{r.mac}</td>
+                  <td className="py-2.5 px-4 font-mono text-slate-400">{r.mac}</td>
                   <td className="py-2.5 px-4 text-right">
                     <span className={`font-mono uppercase text-[10px] px-2 py-0.5 rounded-lg ${
                       r.status === 'online'
                         ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/25'
-                        : 'bg-slate-700/40 text-slate-500 border border-white/10'
+                        : 'bg-[#243352]/50 text-slate-400 border border-white/10'
                     }`}>
                       {r.status}
                     </span>
@@ -129,7 +129,7 @@ function Settings() {
               }}
               className="w-full"
             />
-            <div className="flex justify-between text-[10px] font-mono text-slate-600 mt-1">
+            <div className="flex justify-between text-[10px] font-mono text-slate-500 mt-1">
               <span>50% (High Recall)</span>
               <span>95% (Low False Alarms)</span>
             </div>
@@ -156,7 +156,7 @@ function Settings() {
       </section>
 
       {/* Section 2: Notification Channels */}
-      <section className="bg-slate-900/75 backdrop-blur-xl border border-white/10 rounded-2xl p-5 space-y-4 shadow-glass">
+      <section className="bg-[#1E2E4A]/85 backdrop-blur-xl border border-white/10 rounded-2xl p-5 space-y-4 shadow-glass">
         <div>
           <h2 className="text-sm font-semibold text-white">Alert Channels</h2>
           <p className="text-xs text-slate-400 mt-0.5">Select how caregivers are notified on confirmed fall events</p>
@@ -175,7 +175,7 @@ function Settings() {
             >
               <div>
                 <div className="text-xs font-semibold text-slate-200">{ch.label}</div>
-                <div className="text-[11px] text-slate-500 mt-0.5">{ch.desc}</div>
+                <div className="text-[11px] text-slate-400 mt-0.5">{ch.desc}</div>
               </div>
               <input
                 type="checkbox"
@@ -189,7 +189,7 @@ function Settings() {
       </section>
 
       {/* Section 3: Caregiver Roster */}
-      <section className="bg-slate-900/75 backdrop-blur-xl border border-white/10 rounded-2xl p-5 space-y-4 shadow-glass">
+      <section className="bg-[#1E2E4A]/85 backdrop-blur-xl border border-white/10 rounded-2xl p-5 space-y-4 shadow-glass">
         <div>
           <h2 className="text-sm font-semibold text-white">Caregiver Directory</h2>
           <p className="text-xs text-slate-400 mt-0.5">
@@ -202,14 +202,14 @@ function Settings() {
             <div key={c.id} className="px-4 py-3 flex items-center justify-between gap-3 hover:bg-white/5 transition-colors">
               <div>
                 <div className="text-xs font-semibold text-slate-200">{c.name}</div>
-                <div className="text-[11px] font-mono text-slate-500">
+                <div className="text-[11px] font-mono text-slate-400">
                   {c.role} · {c.contact}
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => handleRemoveCaregiver(c.id)}
-                className="text-xs text-slate-500 hover:text-red-400 transition-colors"
+                className="text-xs text-slate-400 hover:text-red-400 transition-colors"
               >
                 Remove
               </button>
@@ -237,7 +237,7 @@ function Settings() {
       </section>
 
       {/* Section 4: Backend Connection */}
-      <section className="bg-slate-900/75 backdrop-blur-xl border border-white/10 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-glass">
+      <section className="bg-[#1E2E4A]/85 backdrop-blur-xl border border-white/10 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-glass">
         <div>
           <h2 className="text-sm font-semibold text-white">FastAPI Backend Connection</h2>
           <p className="text-xs text-slate-400 mt-0.5 font-mono">
@@ -251,7 +251,7 @@ function Settings() {
           type="button"
           disabled={testingApi}
           onClick={handleTestConnection}
-          className="px-4 py-2 text-xs font-semibold rounded-xl bg-slate-800/60 border border-white/10 text-slate-300 hover:bg-white/10 hover:text-white transition-all disabled:opacity-40"
+          className="px-4 py-2 text-xs font-semibold rounded-xl bg-[#243352]/70 border border-white/10 text-slate-300 hover:bg-white/10 hover:text-white transition-all disabled:opacity-40"
         >
           {testingApi ? 'Checking...' : 'Test Backend Health'}
         </button>

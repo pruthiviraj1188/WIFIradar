@@ -52,7 +52,7 @@ function AppShell() {
 
       {/* ── Thin top bar (non-spatial pages only) ──────────────────────────── */}
       {!isSpatial && (
-        <header className="flex-shrink-0 sticky top-0 z-30 backdrop-blur-2xl bg-slate-950/80 border-b border-white/8 h-12 flex items-center px-6 gap-4">
+        <header className="flex-shrink-0 sticky top-0 z-30 backdrop-blur-2xl bg-[#1A2744]/90 border-b border-white/12 h-12 flex items-center px-6 gap-4">
           <div className="flex items-center gap-2.5 mr-4">
             <div className="w-7 h-7 rounded-lg bg-cyan-500/15 border border-cyan-400/25 flex items-center justify-center text-cyan-400">
               <RadarMark className="w-3.5 h-3.5" />
@@ -94,7 +94,7 @@ function AppShell() {
       {/* ══════════════════════════════════════════════════════════════════════
           Floating Glass Bottom Dock — always visible
       ══════════════════════════════════════════════════════════════════════ */}
-      <div className={`fixed bottom-5 left-1/2 -translate-x-1/2 z-40 flex items-center ${isSpatial ? 'gap-1.5' : 'gap-1'} backdrop-blur-2xl bg-slate-900/65 border border-white/10 rounded-full px-3 py-2 shadow-2xl`}>
+      <div className={`fixed bottom-5 left-1/2 -translate-x-1/2 z-40 flex items-center ${isSpatial ? 'gap-1.5' : 'gap-1'} backdrop-blur-2xl bg-[#1A2744]/85 border border-white/14 rounded-full px-3 py-2 shadow-2xl`}>
 
         {/* Brand dot */}
         <div className="flex items-center justify-center w-8 h-8 rounded-full bg-cyan-500/15 border border-cyan-400/25 text-cyan-400 mr-1">
@@ -110,8 +110,8 @@ function AppShell() {
             className={({ isActive }) =>
               `relative flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-medium transition-all ${
                 isActive
-                  ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-400/25'
-                  : 'text-slate-400 hover:text-white hover:bg-white/8'
+                  ? 'bg-cyan-500/25 text-cyan-200 border border-cyan-400/35'
+                  : 'text-slate-300 hover:text-white hover:bg-white/10'
               }`
             }
           >
@@ -132,7 +132,7 @@ function AppShell() {
         <select
           value={selectedRoomId}
           onChange={(e) => setSelectedRoomId(Number(e.target.value))}
-          className="bg-transparent border-0 text-xs font-medium text-slate-300 focus:outline-none cursor-pointer pr-1 max-w-[110px]"
+          className="bg-transparent border-0 text-xs font-medium text-slate-200 focus:outline-none cursor-pointer pr-1 max-w-[110px]"
           style={{ appearance: 'none' }}
         >
           {rooms.map((r) => (

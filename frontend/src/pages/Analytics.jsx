@@ -69,7 +69,7 @@ function Analytics() {
   return (
     <div className="space-y-6 animate-fade-up">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900/75 backdrop-blur-xl border border-white/10 rounded-2xl px-6 py-4 shadow-glass">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#1E2E4A]/85 backdrop-blur-xl border border-white/10 rounded-2xl px-6 py-4 shadow-glass">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse" />
@@ -84,7 +84,7 @@ function Analytics() {
             Mobility patterns, respiratory stability, and Random Forest classifier diagnostics.
           </p>
         </div>
-        <div className="inline-flex bg-slate-950/70 border border-white/10 rounded-xl p-1 self-start sm:self-auto">
+        <div className="inline-flex bg-[#1A2744]/75 border border-white/10 rounded-xl p-1 self-start sm:self-auto">
           {['24H', '7D', '30D'].map((r) => (
             <button
               key={r}
@@ -105,7 +105,7 @@ function Analytics() {
       {/* Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Activity Breakdown */}
-        <div className="bg-slate-900/75 backdrop-blur-xl border border-white/10 rounded-2xl p-5 shadow-glass">
+        <div className="bg-[#1E2E4A]/85 backdrop-blur-xl border border-white/10 rounded-2xl p-5 shadow-glass">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h2 className="text-sm font-semibold text-white">Activity Transitions ({range})</h2>
@@ -133,7 +133,7 @@ function Analytics() {
         </div>
 
         {/* Respiratory Baseline */}
-        <div className="bg-slate-900/75 backdrop-blur-xl border border-white/10 rounded-2xl p-5 shadow-glass">
+        <div className="bg-[#1E2E4A]/85 backdrop-blur-xl border border-white/10 rounded-2xl p-5 shadow-glass">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h2 className="text-sm font-semibold text-white">Circadian Respiration Curve</h2>
@@ -164,7 +164,7 @@ function Analytics() {
       </div>
 
       {/* Classifier Diagnostics */}
-      <div className="bg-slate-900/75 backdrop-blur-xl border border-white/10 rounded-2xl p-5 shadow-glass">
+      <div className="bg-[#1E2E4A]/85 backdrop-blur-xl border border-white/10 rounded-2xl p-5 shadow-glass">
         <div className="flex flex-wrap items-start justify-between gap-3 pb-4 border-b border-white/10">
           <div>
             <h2 className="text-sm font-semibold text-white">
@@ -186,8 +186,8 @@ function Analytics() {
               { label: 'Val Acc',   val: '56.3%', color: 'text-amber-300' },
               { label: 'Test Acc',  val: '55.4%', color: 'text-amber-300' },
             ].map((m) => (
-              <div key={m.label} className="bg-slate-950/70 border border-white/10 rounded-xl p-3">
-                <div className="text-[10px] font-mono uppercase text-slate-500">{m.label}</div>
+              <div key={m.label} className="bg-[#1A2744]/75 border border-white/10 rounded-xl p-3">
+                <div className="text-[10px] font-mono uppercase text-slate-400">{m.label}</div>
                 <div className={`mt-1.5 text-lg font-semibold font-mono tabular-nums ${m.color}`}>
                   {m.val}
                 </div>
@@ -196,19 +196,19 @@ function Analytics() {
           </div>
 
           <div className="lg:col-span-2 space-y-3">
-            <div className="text-[11px] font-mono uppercase tracking-wider text-slate-500">
+            <div className="text-[11px] font-mono uppercase tracking-wider text-slate-400">
               Training Class Balance (5 Classes)
             </div>
             {MODEL_CLASS_DISTRIBUTION.map((cls) => (
               <div key={cls.label} className="flex items-center gap-3 text-xs font-mono">
                 <span className="w-14 text-slate-300 capitalize">{cls.label}</span>
-                <div className="flex-1 h-2 bg-slate-800/60 rounded-full overflow-hidden">
+                <div className="flex-1 h-2 bg-[#243352]/70 rounded-full overflow-hidden">
                   <div
                     className="h-full rounded-full transition-all"
                     style={{ width: `${cls.pct}%`, backgroundColor: cls.color, opacity: 0.8 }}
                   />
                 </div>
-                <span className="w-28 text-right text-slate-500 tabular-nums">
+                <span className="w-28 text-right text-slate-400 tabular-nums">
                   {cls.count.toLocaleString()} ({cls.pct}%)
                 </span>
               </div>

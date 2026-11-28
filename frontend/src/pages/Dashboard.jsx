@@ -55,7 +55,7 @@ function EmergencyDrawer({ open, onClose }) {
       />
 
       {/* Drawer panel */}
-      <div className="relative z-10 w-full max-w-lg bg-slate-900/90 backdrop-blur-2xl border border-white/10 rounded-3xl shadow-2xl overflow-hidden max-h-[85vh] overflow-y-auto">
+      <div className="relative z-10 w-full max-w-lg bg-[#1A2744]/95 backdrop-blur-2xl border border-white/14 rounded-3xl shadow-2xl overflow-hidden max-h-[85vh] overflow-y-auto">
         {/* Handle bar */}
         <div className="flex justify-center pt-3 pb-1">
           <div className="w-10 h-1 bg-white/20 rounded-full" />
@@ -240,8 +240,8 @@ function Dashboard() {
 
       {/* ── Top-left status pill ──────────────────────────────────────────── */}
       <div className="absolute top-5 left-5 z-20">
-        <div className={`flex items-center gap-2.5 backdrop-blur-2xl bg-slate-900/55 border px-4 py-2.5 rounded-full shadow-glass transition-colors ${
-          isFall ? 'border-red-500/40' : 'border-white/12'
+        <div className={`flex items-center gap-2.5 backdrop-blur-2xl bg-[#1A2744]/75 border px-4 py-2.5 rounded-full shadow-glass transition-colors ${
+          isFall ? 'border-red-400/50' : 'border-white/18'
         }`}>
           <span className={`w-2 h-2 rounded-full flex-shrink-0 ${isFall ? 'bg-red-500 animate-ping' : 'bg-cyan-400 animate-pulse'}`} />
           <span className="text-sm font-medium text-white">
@@ -290,7 +290,7 @@ function Dashboard() {
       {/* ── Bottom-right corner widget: CSI sparkline + Emergency button ──── */}
       <div className="absolute bottom-28 right-5 z-20 flex flex-col items-end gap-3">
         {/* CSI sparkline card */}
-        <div className="backdrop-blur-2xl bg-slate-900/55 border border-white/10 rounded-2xl px-4 py-3 shadow-glass w-52">
+        <div className="backdrop-blur-2xl bg-[#1A2744]/80 border border-white/14 rounded-2xl px-4 py-3 shadow-glass w-52">
           <div className="flex items-center justify-between mb-2">
             <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400">CSI Envelope</span>
             <span className="text-[11px] font-mono text-cyan-300 tabular-nums">{currentFrame.rssi} dBm</span>
@@ -321,8 +321,8 @@ function Dashboard() {
           onClick={() => setDrawerOpen(true)}
           className={`flex items-center gap-2 backdrop-blur-2xl border px-4 py-2.5 rounded-full shadow-glass text-xs font-semibold transition-all ${
             isActive
-              ? 'bg-red-900/70 border-red-500/50 text-red-200 animate-alert-glow'
-              : 'bg-slate-900/55 border-white/12 text-slate-200 hover:border-cyan-400/40 hover:text-cyan-300'
+              ? 'bg-red-800/70 border-red-400/55 text-red-200 animate-alert-glow'
+              : 'bg-[#1A2744]/80 border-white/14 text-slate-200 hover:border-cyan-400/50 hover:text-cyan-200'
           }`}
         >
           <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round">
