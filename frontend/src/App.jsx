@@ -48,11 +48,11 @@ function AppShell() {
   }[connectionMode] || 'bg-slate-500'
 
   return (
-    <div className="min-h-screen bg-obsidian text-slate-100 flex flex-col">
+    <div className="bg-obsidian text-slate-100" style={{ height: '100dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
       {/* ── Thin top bar (non-spatial pages only) ──────────────────────────── */}
       {!isSpatial && (
-        <header className="sticky top-0 z-30 backdrop-blur-2xl bg-slate-950/80 border-b border-white/8 h-13 flex items-center px-6 gap-4">
+        <header className="flex-shrink-0 sticky top-0 z-30 backdrop-blur-2xl bg-slate-950/80 border-b border-white/8 h-12 flex items-center px-6 gap-4">
           <div className="flex items-center gap-2.5 mr-4">
             <div className="w-7 h-7 rounded-lg bg-cyan-500/15 border border-cyan-400/25 flex items-center justify-center text-cyan-400">
               <RadarMark className="w-3.5 h-3.5" />
@@ -67,15 +67,28 @@ function AppShell() {
       )}
 
       {/* ── Main content area ─────────────────────────────────────────────── */}
-      <main className={`flex-1 ${isSpatial ? 'relative overflow-hidden' : 'max-w-7xl w-full mx-auto px-4 sm:px-8 py-6'}`}
-        style={isSpatial ? { height: 'calc(100vh - 0px)' } : {}}>
-        <Routes>
-          <Route path="/"          element={<Dashboard />} />
-          <Route path="/live"      element={<LiveMonitoring />} />
-          <Route path="/incidents" element={<Incidents />} />
-          <Route path="/analytics" element={<Analytics />} />
-          <Route path="/settings"  element={<Settings />} />
-        </Routes>
+      <main
+        className={isSpatial ? '' : 'overflow-y-auto'}
+        style={isSpatial
+          ? { flex: 1, position: 'relative', overflow: 'hidden', minHeight: 0 }
+          : { flex: 1, minHeight: 0, paddingBottom: '80px' }
+        }
+      >
+        {!isSpatial && (
+          <div className="max-w-7xl w-full mx-auto px-4 sm:px-8 py-6">
+            <Routes>
+              <Route path="/live"      element={<LiveMonitoring />} />
+              <Route path="/incidents" element={<Incidents />} />
+              <Route path="/analytics" element={<Analytics />} />
+              <Route path="/settings"  element={<Settings />} />
+            </Routes>
+          </div>
+        )}
+        {isSpatial && (
+          <Routes>
+            <Route path="/" element={<Dashboard />} />
+          </Routes>
+        )}
       </main>
 
       {/* ══════════════════════════════════════════════════════════════════════

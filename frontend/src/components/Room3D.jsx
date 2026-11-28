@@ -359,7 +359,10 @@ function Room3DVisualization({
     norm === 'fall' ? [0.15, 0.25, 0.65] : [0.1, 1.0, 0.45]
 
   return (
-    <div className={`relative w-full ${fullScreen ? 'h-full' : 'h-[420px]'} bg-[#060C17] overflow-hidden`}>
+    <div
+      className={`relative w-full bg-[#060C17] overflow-hidden`}
+      style={{ height: fullScreen ? '100%' : '420px' }}
+    >
       <Canvas
         camera={{ position: [5.4, 4.2, 5.4], fov: 40 }}
         shadows

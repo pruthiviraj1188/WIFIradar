@@ -224,10 +224,10 @@ function Dashboard() {
   const sparkData = (currentFrame.csi_data || []).slice(-28).map((amp, idx) => ({ i: idx, amp }))
 
   return (
-    <div className="relative w-full h-full">
+    <div className="relative w-full h-full" style={{ position: 'absolute', inset: 0 }}>
 
       {/* ── Full-bleed 3D canvas ───────────────────────────────────────────── */}
-      <div className="absolute inset-0">
+      <div style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}>
         <Room3DVisualization
           activity={currentFrame.activity}
           confidence={currentFrame.confidence}
